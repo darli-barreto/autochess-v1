@@ -20,7 +20,7 @@ export const LittleLegendEmoteBar: React.FC<LittleLegendEmoteBarProps> = ({
   return (
     <>
       {/* Floating Tactician Action Bar */}
-      <div className="flex items-center gap-1 bg-slate-950/85 backdrop-blur-md border border-cyan-500/30 rounded-xl p-1.5 shadow-xl shadow-cyan-950/40 text-xs">
+      <div className="flex items-center gap-1 bg-slate-950/85 backdrop-blur-md border border-cyan-500/30 rounded-xl p-1.5 text-xs">
         {/* Tactician Avatar & Selector Button */}
         <button
           onClick={() => setIsModalOpen(true)}
