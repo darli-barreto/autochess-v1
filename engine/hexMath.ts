@@ -1,4 +1,7 @@
+// src/engine/hexMath.ts
+
 import { AxialCoord } from '@/types/game';
+import { ARENA_CONFIG } from '@/components/arena/arenaConfig';
 
 export const BOARD_ROWS = 8; // 0 to 3: enemy, 4 to 7: ally
 export const BOARD_COLS = 7;
@@ -67,43 +70,46 @@ export function getHexNeighbors(coord: AxialCoord): AxialCoord[] {
 }
 
 /**
- * Convert axial coordinate to 3D World space (X, Y, Z)
- * Staggered hex layout centered at (0, 0, 0)
+ * ⬡ Convierte coordenada axial a posición 3D usando el espaciado dinámico de arenaConfig
  */
 export function axialToWorld3D(coord: AxialCoord, heightOffset = 0): { x: number; y: number; z: number } {
   const { row, col } = axialToRowCol(coord);
-  const width = Math.sqrt(3) * HEX_RADIUS;
-  const height = 1.5 * HEX_RADIUS;
+  const conf = ARENA_CONFIG.hexGrid;
+
+  // Usa spacingX y spacingZ configurados en arenaConfig.ts
+  const width = conf?.spacingX ?? (Math.sqrt(3) * (conf?.radius || HEX_RADIUS));
+  const height = conf?.spacingZ ?? (1.5 * (conf?.radius || HEX_RADIUS));
 
   const xOffset = (row % 2) * (width / 2);
-  const x = (col - (BOARD_COLS - 1) / 2) * width + xOffset - (width / 4);
-  const z = (row - (BOARD_ROWS - 1) / 2) * height;
+  const x = (col - (BOARD_COLS - 1) / 2) * width + xOffset - (width / 4) + (conf?.offsetX || 0);
+  const z = (row - (BOARD_ROWS - 1) / 2) * height + (conf?.offsetZ || 0);
 
   return { x, y: heightOffset, z };
 }
 
 /**
- * Convert ally bench index (0..8) to 3D World space
+ * 🟦 Convierte índice de banca aliada (0..8) a 3D usando la configuración de arenaConfig
  */
 export function benchIndexToWorld3D(index: number): { x: number; y: number; z: number } {
-  const spacing = 1.32;
-  const startX = -((9 - 1) * spacing) / 2;
+  const conf = ARENA_CONFIG.benches.ally;
+  const spacing = conf?.spacing ?? 1.32;
+  const startX = -((9 - 1) * spacing) / 2 + (conf?.xOffset ?? 0);
   const x = startX + index * spacing;
-  const z = 6.7; // Positioned cleanly above the shop footer in camera viewport
-  return { x, y: 0.1, z };
+  const z = conf?.z ?? 6.7;
+  return { x, y: conf?.y ?? 0.1, z };
 }
 
 /**
- * Convert enemy bench index (0..8) to 3D World space (Opponent top bench)
+ * 🟥 Convierte índice de banca enemiga (0..8) a 3D usando la configuración de arenaConfig
  */
 export function enemyBenchIndexToWorld3D(index: number): { x: number; y: number; z: number } {
-  const spacing = 1.32;
-  const startX = -((9 - 1) * spacing) / 2;
+  const conf = ARENA_CONFIG.benches.enemy;
+  const spacing = conf?.spacing ?? 1.32;
+  const startX = -((9 - 1) * spacing) / 2 + (conf?.xOffset ?? 0);
   const x = startX + index * spacing;
-  const z = -6.7; // Positioned cleanly below top header without wasted space
-  return { x, y: 0.1, z };
+  const z = conf?.z ?? -6.7;
+  return { x, y: conf?.y ?? 0.1, z };
 }
-
 
 /**
  * A* Pathfinding Algorithm on Axial Hex Grid
@@ -119,11 +125,11 @@ interface AStarNode {
 export function findHexPath(
   start: AxialCoord,
   goal: AxialCoord,
-  occupiedCoords: Set<string>, // key = `${q},${r}`
+  occupiedCoords: Set<string>,
   maxRange = 1
 ): AxialCoord[] {
   if (hexDistance(start, goal) <= maxRange) {
-    return []; // Already in range!
+    return [];
   }
 
   const coordKey = (c: AxialCoord) => `${c.q},${c.r}`;
@@ -140,13 +146,11 @@ export function findHexPath(
   openSet.push(startNode);
 
   while (openSet.length > 0) {
-    // Find node with lowest f
     openSet.sort((a, b) => a.f - b.f);
     const current = openSet.shift()!;
     const curKey = coordKey(current.coord);
 
     if (hexDistance(current.coord, goal) <= maxRange) {
-      // Reconstruct path
       const path: AxialCoord[] = [];
       let temp: AStarNode | null = current;
       while (temp && temp.parent) {
@@ -163,7 +167,6 @@ export function findHexPath(
       const nKey = coordKey(neighbor);
       if (closedSet.has(nKey)) continue;
 
-      // Cannot walk into occupied tile, UNLESS it is the goal tile when range is 0
       if (occupiedCoords.has(nKey) && nKey !== coordKey(goal)) {
         continue;
       }
@@ -189,5 +192,5 @@ export function findHexPath(
     }
   }
 
-  return []; // No path found
+  return [];
 }
