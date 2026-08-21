@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import React, { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { BoardUnit, AxialCoord, DamageNumberEvent, ProjectileEvent, VisualEffectEvent } from '@/types/game';
-import { CHAMPIONS_DATA } from '@/data/champions';
-import { ALL_ITEMS } from '@/data/items';
+import React, { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import {
+  BoardUnit,
+  AxialCoord,
+  DamageNumberEvent,
+  ProjectileEvent,
+  VisualEffectEvent,
+} from "@/types/game";
+import { CHAMPIONS_DATA } from "@/data/champions";
+import { ALL_ITEMS } from "@/data/items";
 import {
   BOARD_ROWS,
   BOARD_COLS,
@@ -14,11 +20,14 @@ import {
   rowColToAxial,
   axialToRowCol,
   hexDistance,
-} from '@/engine/hexMath';
-import { CombatEngine } from '@/engine/combatEngine';
-import { championModelManager } from '@/engine/championModelManager';
-import { LittleLegendManager, LittleLegendEntity } from '@/engine/littleLegendManager';
-import { getLittleLegendById } from '@/data/littleLegends';
+} from "@/engine/hexMath";
+import { CombatEngine } from "@/engine/combatEngine";
+import { championModelManager } from "@/engine/championModelManager";
+import {
+  LittleLegendManager,
+  LittleLegendEntity,
+} from "@/engine/littleLegendManager";
+import { getLittleLegendById } from "@/data/littleLegends";
 
 interface ThreeArenaProps {
   boardUnits: BoardUnit[];
@@ -36,8 +45,14 @@ interface ThreeArenaProps {
   onMoveToBench: (unitId: string, benchIndex?: number) => void;
   onSellUnit?: (unit: BoardUnit) => void;
   showDebugOverlay: boolean;
-  onDebugStatsUpdate?: (stats: { fps: number; drawCalls: number; triangles: number }) => void;
-  onTriggerEmoteRef?: React.MutableRefObject<((emote: 'DANCE' | 'TAUNT' | 'CHEER' | 'LAUGH') => void) | null>;
+  onDebugStatsUpdate?: (stats: {
+    fps: number;
+    drawCalls: number;
+    triangles: number;
+  }) => void;
+  onTriggerEmoteRef?: React.MutableRefObject<
+    ((emote: "DANCE" | "TAUNT" | "CHEER" | "LAUGH") => void) | null
+  >;
   onZoomInRef?: React.MutableRefObject<(() => void) | null>;
   onZoomOutRef?: React.MutableRefObject<(() => void) | null>;
   onResetCameraRef?: React.MutableRefObject<(() => void) | null>;
@@ -56,10 +71,10 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   combatEngine,
   isCombatPhase,
   selectedUnitId,
-  playerLegendId = 'river_sprite',
-  opponentLegendId = 'pengu_knight',
-  playerName = 'Estratega',
-  opponentName = 'Rival',
+  playerLegendId = "river_sprite",
+  opponentLegendId = "chibi_battle_bat_xayah",
+  playerName = "Estratega",
+  opponentName = "Rival",
   onSelectUnit,
   onMoveUnit,
   onMoveToBench,
@@ -85,10 +100,14 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   // Little Legend / Tactician Entities
   const playerLegendEntityRef = useRef<LittleLegendEntity | null>(null);
   const opponentLegendEntityRef = useRef<LittleLegendEntity | null>(null);
-  const activeClickPingsRef = useRef<{ mesh: THREE.Group; birthTime: number; duration: number }[]>([]);
+  const activeClickPingsRef = useRef<
+    { mesh: THREE.Group; birthTime: number; duration: number }[]
+  >([]);
 
   // Camera Zoom & Dynamic Focus Controls
-  const targetCameraPosRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 22.0, 15.8));
+  const targetCameraPosRef = useRef<THREE.Vector3>(
+    new THREE.Vector3(0, 22.0, 15.8),
+  );
   const targetLookAtRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 1.7));
   const currentLookAtRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 0, 1.7));
   const zoomDistanceRef = useRef<number>(27.0);
@@ -105,11 +124,24 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   const hexMeshesRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const benchHexMeshesRef = useRef<THREE.Mesh[]>([]);
   const enemyBenchHexMeshesRef = useRef<THREE.Mesh[]>([]);
-  const floatingDamageTextsRef = useRef<{ mesh: THREE.Sprite; birthTime: number; startY: number }[]>([]);
-  const activeProjectilesRef = useRef<{ mesh: THREE.Mesh; p: ProjectileEvent; birthTime: number }[]>([]);
-  const activeVfxRef = useRef<{ mesh: THREE.Mesh; vfx: VisualEffectEvent; birthTime: number }[]>([]);
+  const floatingDamageTextsRef = useRef<
+    { mesh: THREE.Sprite; birthTime: number; startY: number }[]
+  >([]);
+  const activeProjectilesRef = useRef<
+    { mesh: THREE.Mesh; p: ProjectileEvent; birthTime: number }[]
+  >([]);
+  const activeVfxRef = useRef<
+    { mesh: THREE.Mesh; vfx: VisualEffectEvent; birthTime: number }[]
+  >([]);
   const debugLinesGroupRef = useRef<THREE.Group | null>(null);
-  const flamesRef = useRef<{ mesh: THREE.Mesh; light: THREE.PointLight; baseIntensity: number; phase: number }[]>([]);
+  const flamesRef = useRef<
+    {
+      mesh: THREE.Mesh;
+      light: THREE.PointLight;
+      baseIntensity: number;
+      phase: number;
+    }[]
+  >([]);
 
   // Dragging & Interaction State
   const [draggedUnit, setDraggedUnit] = useState<BoardUnit | null>(null);
@@ -117,9 +149,14 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   const dragPosRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.2, 0));
   const dragHighlightMeshRef = useRef<THREE.Group | null>(null);
 
-  const [hoveredHex, setHoveredHex] = useState<{ row: number; col: number } | null>(null);
+  const [hoveredHex, setHoveredHex] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
   const [hoveredBenchIdx, setHoveredBenchIdx] = useState<number | null>(null);
-  const [hoveredTargetUnit, setHoveredTargetUnit] = useState<BoardUnit | null>(null);
+  const [hoveredTargetUnit, setHoveredTargetUnit] = useState<BoardUnit | null>(
+    null,
+  );
   const [isOverSellZone, setIsOverSellZone] = useState<boolean>(false);
 
   // Debug stats callback ref
@@ -156,7 +193,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
-      powerPreference: 'high-performance',
+      powerPreference: "high-performance",
       stencil: false,
     });
     renderer.setSize(width, height);
@@ -268,8 +305,16 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       { x: 7.2, z: 7.4 },
     ];
     const brazierGeo = new THREE.CylinderGeometry(0.45, 0.65, 1.1, 8);
-    const brazierMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
-    const flameList: { mesh: THREE.Mesh; light: THREE.PointLight; baseIntensity: number; phase: number }[] = [];
+    const brazierMat = new THREE.MeshStandardMaterial({
+      color: 0x334155,
+      roughness: 0.8,
+    });
+    const flameList: {
+      mesh: THREE.Mesh;
+      light: THREE.PointLight;
+      baseIntensity: number;
+      phase: number;
+    }[] = [];
 
     brazierPositions.forEach((pos, idx) => {
       const bMesh = new THREE.Mesh(brazierGeo, brazierMat);
@@ -279,14 +324,21 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
       // Fire Bowl
       const bowlGeo = new THREE.CylinderGeometry(0.6, 0.35, 0.35, 8);
-      const bowlMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6 });
+      const bowlMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.6,
+      });
       const bowl = new THREE.Mesh(bowlGeo, bowlMat);
       bowl.position.set(pos.x, 1.1, pos.z);
       scene.add(bowl);
 
       // Flame Mesh
       const flameGeo = new THREE.ConeGeometry(0.3, 0.75, 8);
-      const flameMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.9 });
+      const flameMat = new THREE.MeshBasicMaterial({
+        color: 0xf59e0b,
+        transparent: true,
+        opacity: 0.9,
+      });
       const flame = new THREE.Mesh(flameGeo, flameMat);
       flame.position.set(pos.x, 1.45, pos.z);
       scene.add(flame);
@@ -296,7 +348,12 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       fLight.position.set(pos.x, 1.6, pos.z);
       scene.add(fLight);
 
-      flameList.push({ mesh: flame, light: fLight, baseIntensity: 1.6, phase: idx * 1.5 });
+      flameList.push({
+        mesh: flame,
+        light: fLight,
+        baseIntensity: 1.6,
+        phase: idx * 1.5,
+      });
     });
     flamesRef.current = flameList;
 
@@ -337,10 +394,19 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         const pos = axialToWorld3D(axial, 0);
 
         const isAllySide = r >= 4;
-        const mesh = new THREE.Mesh(hexGeo, isAllySide ? allyMat.clone() : enemyMat.clone());
+        const mesh = new THREE.Mesh(
+          hexGeo,
+          isAllySide ? allyMat.clone() : enemyMat.clone(),
+        );
         mesh.position.set(pos.x, pos.y, pos.z);
         mesh.receiveShadow = true;
-        mesh.userData = { row: r, col: c, q: axial.q, rAxial: axial.r, isBoardHex: true };
+        mesh.userData = {
+          row: r,
+          col: c,
+          q: axial.q,
+          rAxial: axial.r,
+          isBoardHex: true,
+        };
 
         // Hex Border Outline
         const edges = new THREE.EdgesGeometry(hexGeo);
@@ -360,7 +426,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
     // Midfield Dividing Glowing Line
     const dividerGeo = new THREE.BoxGeometry(11.5, 0.05, 0.08);
-    const dividerMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9 });
+    const dividerMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.9,
+    });
     const divider = new THREE.Mesh(dividerGeo, dividerMat);
     divider.position.set(0, 0.09, 0.0);
     scene.add(divider);
@@ -385,13 +455,22 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       const bEdges = new THREE.EdgesGeometry(benchGeo);
       const bLine = new THREE.LineSegments(
         bEdges,
-        new THREE.LineBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.9 })
+        new THREE.LineBasicMaterial({
+          color: 0x00d2ff,
+          transparent: true,
+          opacity: 0.9,
+        }),
       );
       bMesh.add(bLine);
 
       // Inner pedestal ring
       const innerRingGeo = new THREE.RingGeometry(0.4, 0.62, 6);
-      const innerRingMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.65 });
+      const innerRingMat = new THREE.MeshBasicMaterial({
+        color: 0xf59e0b,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.65,
+      });
       const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
       innerRing.rotation.x = -Math.PI / 2;
       innerRing.position.y = 0.08;
@@ -421,13 +500,22 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       const ebEdges = new THREE.EdgesGeometry(benchGeo);
       const ebLine = new THREE.LineSegments(
         ebEdges,
-        new THREE.LineBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.75 })
+        new THREE.LineBasicMaterial({
+          color: 0xf43f5e,
+          transparent: true,
+          opacity: 0.75,
+        }),
       );
       ebMesh.add(ebLine);
 
       // Inner ruby ring
       const innerRingGeo = new THREE.RingGeometry(0.4, 0.62, 6);
-      const innerRingMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+      const innerRingMat = new THREE.MeshBasicMaterial({
+        color: 0xf43f5e,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.45,
+      });
       const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat);
       innerRing.rotation.x = -Math.PI / 2;
       innerRing.position.y = 0.08;
@@ -449,7 +537,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     });
     const hlRing = new THREE.Mesh(hlGeo, hlMat);
     hlRing.rotation.x = -Math.PI / 2;
-    hlRing.name = 'hl_ring';
+    hlRing.name = "hl_ring";
     dragHlGroup.add(hlRing);
 
     const innerHlGeo = new THREE.CircleGeometry(0.7, 6);
@@ -462,7 +550,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     const innerHlMesh = new THREE.Mesh(innerHlGeo, innerHlMat);
     innerHlMesh.rotation.x = -Math.PI / 2;
     innerHlMesh.position.y = -0.01;
-    innerHlMesh.name = 'hl_inner';
+    innerHlMesh.name = "hl_inner";
     dragHlGroup.add(innerHlMesh);
 
     dragHlGroup.position.set(0, 0.12, 0);
@@ -491,7 +579,9 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       frameCountRef.current++;
       const now = performance.now();
       if (now - lastFpsTimeRef.current >= 1000) {
-        const fps = Math.round((frameCountRef.current * 1000) / (now - lastFpsTimeRef.current));
+        const fps = Math.round(
+          (frameCountRef.current * 1000) / (now - lastFpsTimeRef.current),
+        );
         frameCountRef.current = 0;
         lastFpsTimeRef.current = now;
         if (onDebugStatsUpdateRef.current && rendererRef.current) {
@@ -505,14 +595,23 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
       // Animate Flames on Braziers
       flamesRef.current.forEach((f) => {
-        const flicker = Math.sin(elapsed * 8 + f.phase) * 0.15 + Math.cos(elapsed * 12 + f.phase) * 0.1;
-        f.mesh.scale.set(1 + flicker * 0.3, 1 + flicker * 0.5, 1 + flicker * 0.3);
+        const flicker =
+          Math.sin(elapsed * 8 + f.phase) * 0.15 +
+          Math.cos(elapsed * 12 + f.phase) * 0.1;
+        f.mesh.scale.set(
+          1 + flicker * 0.3,
+          1 + flicker * 0.5,
+          1 + flicker * 0.3,
+        );
         f.light.intensity = f.baseIntensity + flicker * 0.4;
       });
 
       // Animate Drag Indicator Ring
-      if (dragHighlightMeshRef.current && dragHighlightMeshRef.current.visible) {
-        const ring = dragHighlightMeshRef.current.getObjectByName('hl_ring');
+      if (
+        dragHighlightMeshRef.current &&
+        dragHighlightMeshRef.current.visible
+      ) {
+        const ring = dragHighlightMeshRef.current.getObjectByName("hl_ring");
         if (ring) {
           ring.rotation.z += delta * 1.5;
         }
@@ -525,8 +624,16 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
         // If being dragged by player, follow dragPosRef with elevated height
         if (meshObj.instanceId === draggedUnitRef.current?.instanceId) {
-          group.position.x = THREE.MathUtils.lerp(group.position.x, dragPosRef.current.x, 0.45);
-          group.position.z = THREE.MathUtils.lerp(group.position.z, dragPosRef.current.z, 0.45);
+          group.position.x = THREE.MathUtils.lerp(
+            group.position.x,
+            dragPosRef.current.x,
+            0.45,
+          );
+          group.position.z = THREE.MathUtils.lerp(
+            group.position.z,
+            dragPosRef.current.z,
+            0.45,
+          );
           group.position.y = THREE.MathUtils.lerp(group.position.y, 1.25, 0.35);
           group.scale.set(1.15, 1.15, 1.15);
           return;
@@ -534,35 +641,52 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
         let targetPos = { x: 0, y: 0.2, z: 0 };
         if (meshObj.benchIndex !== null) {
-          targetPos = meshObj.team === 'enemy'
-            ? enemyBenchIndexToWorld3D(meshObj.benchIndex)
-            : benchIndexToWorld3D(meshObj.benchIndex);
+          targetPos =
+            meshObj.team === "enemy"
+              ? enemyBenchIndexToWorld3D(meshObj.benchIndex)
+              : benchIndexToWorld3D(meshObj.benchIndex);
         } else if (meshObj.gridPosition) {
           targetPos = axialToWorld3D(meshObj.gridPosition, 0.2);
         }
 
         // Smooth continuous lerp directly to target hex center with delta-scaled factor
-        group.position.x = THREE.MathUtils.lerp(group.position.x, targetPos.x, Math.min(1, delta * 14));
-        group.position.z = THREE.MathUtils.lerp(group.position.z, targetPos.z, Math.min(1, delta * 14));
+        group.position.x = THREE.MathUtils.lerp(
+          group.position.x,
+          targetPos.x,
+          Math.min(1, delta * 14),
+        );
+        group.position.z = THREE.MathUtils.lerp(
+          group.position.z,
+          targetPos.z,
+          Math.min(1, delta * 14),
+        );
 
         // Smooth rotation towards enemy side or target
-        const targetRot = meshObj.team === 'enemy' ? Math.PI : 0;
-        group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, targetRot, Math.min(1, delta * 10));
+        const targetRot = meshObj.team === "enemy" ? Math.PI : 0;
+        group.rotation.y = THREE.MathUtils.lerp(
+          group.rotation.y,
+          targetRot,
+          Math.min(1, delta * 10),
+        );
 
         // Idle breathing bob on y
-        const baseOffsetY = meshObj.state === 'MOVING' ? 0.35 : 0.2;
+        const baseOffsetY = meshObj.state === "MOVING" ? 0.35 : 0.2;
         const bob = Math.sin(elapsed * 3.5 + Number(group.id)) * 0.04;
-        group.position.y = THREE.MathUtils.lerp(group.position.y, baseOffsetY + bob, Math.min(1, delta * 12));
+        group.position.y = THREE.MathUtils.lerp(
+          group.position.y,
+          baseOffsetY + bob,
+          Math.min(1, delta * 12),
+        );
         group.scale.set(1.0, 1.0, 1.0);
 
         // Pulse selected ring
-        const selectRing = group.getObjectByName('select_ring');
+        const selectRing = group.getObjectByName("select_ring");
         if (selectRing) {
           selectRing.rotation.z += delta * 2;
         }
 
         // Star 3 golden aura spin
-        const aura = group.getObjectByName('star3_aura');
+        const aura = group.getObjectByName("star3_aura");
         if (aura) {
           aura.rotation.y += delta * 1.5;
         }
@@ -595,7 +719,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
           proj.mesh.position.lerpVectors(
             new THREE.Vector3(proj.p.sourceX, proj.p.sourceY, proj.p.sourceZ),
             new THREE.Vector3(proj.p.targetX, proj.p.targetY, proj.p.targetZ),
-            t
+            t,
           );
           // Arch upward
           proj.mesh.position.y += Math.sin(t * Math.PI) * 0.6;
@@ -612,7 +736,8 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         } else {
           const scale = 1 + (age / v.vfx.duration) * (v.vfx.radius || 1.5);
           v.mesh.scale.set(scale, scale, scale);
-          (v.mesh.material as THREE.MeshBasicMaterial).opacity = 1 - age / v.vfx.duration;
+          (v.mesh.material as THREE.MeshBasicMaterial).opacity =
+            1 - age / v.vfx.duration;
         }
       }
 
@@ -622,106 +747,126 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       });
 
       // --- Camera Smooth Interpolation & Dynamic Following ---
-      if (isFollowingTacticianLocalRef.current && playerLegendEntityRef.current) {
+      if (
+        isFollowingTacticianLocalRef.current &&
+        playerLegendEntityRef.current
+      ) {
         const pPos = playerLegendEntityRef.current.currentPos;
         targetLookAtRef.current.set(pPos.x, 0.8, pPos.z);
         targetCameraPosRef.current.set(pPos.x, 8.5, pPos.z + 7.5);
       }
 
-      camera.position.lerp(targetCameraPosRef.current, Math.min(1, delta * 6.5));
-      currentLookAtRef.current.lerp(targetLookAtRef.current, Math.min(1, delta * 6.5));
+      camera.position.lerp(
+        targetCameraPosRef.current,
+        Math.min(1, delta * 6.5),
+      );
+      currentLookAtRef.current.lerp(
+        targetLookAtRef.current,
+        Math.min(1, delta * 6.5),
+      );
       camera.lookAt(currentLookAtRef.current);
 
       // --- Animate Little Legend Tacticians (Player & Opponent) ---
-      const animateTactician = (tactician: LittleLegendEntity | null, isPlayer: boolean) => {
-        if (!tactician) return;
-        const avatar = tactician.group.getObjectByName('tactician_avatar');
-        const rim = tactician.group.getObjectByName('tactician_rim');
+      const animateTactician = (
+    tactician: LittleLegendEntity | null,
+    isPlayer: boolean
+  ) => {
+    if (!tactician || !tactician.group) return;
 
-        if (rim) {
-          rim.rotation.z += delta * 1.5;
+    const avatar = tactician.group.getObjectByName('tactician_avatar');
+    const rim = tactician.group.getObjectByName('tactician_rim');
+
+    if (rim) {
+      rim.rotation.z += delta * 1.5;
+    }
+
+    // 1. Control de Emotes (Gestos)
+    if (tactician.stateTimer > 0) {
+      tactician.stateTimer -= delta;
+      if (tactician.stateTimer <= 0) {
+        tactician.state = 'IDLE';
+        tactician.model3D?.playAnimation('idle', 0.2); // Volver limpio a Idle_Base
+        if (tactician.bubbleSprite) {
+          tactician.group.remove(tactician.bubbleSprite);
+          tactician.bubbleSprite = null;
+        }
+      }
+    }
+
+    // 2. Control de Movimiento
+    if (tactician.targetPos) {
+      const dx = tactician.targetPos.x - tactician.currentPos.x;
+      const dz = tactician.targetPos.z - tactician.currentPos.z;
+      const dist = Math.hypot(dx, dz);
+
+      // Si llegó al destino
+      if (dist < 0.2) {
+        tactician.currentPos.copy(tactician.targetPos);
+        tactician.targetPos = null;
+        tactician.state = 'IDLE';
+        tactician.model3D?.playAnimation('idle', 0.2); // Vuelve fluido a Idle_Base
+      } else {
+        // En camino: asegurar que esté corriendo
+        tactician.state = 'RUNNING';
+        if (tactician.model3D?.currentActionName !== 'run') {
+          tactician.model3D?.playAnimation('run', 0.12);
         }
 
-        // Emote timers & speech bubble lifecycle
-        if (tactician.stateTimer > 0) {
-          tactician.stateTimer -= delta;
-          if (tactician.stateTimer <= 0) {
-            tactician.state = 'IDLE';
-            if (tactician.bubbleSprite) {
-              tactician.group.remove(tactician.bubbleSprite);
-              tactician.bubbleSprite = null;
-            }
-          }
-        }
-
-        // Movement towards targetPos
-        if (tactician.targetPos) {
-          const dx = tactician.targetPos.x - tactician.currentPos.x;
-          const dz = tactician.targetPos.z - tactician.currentPos.z;
-          const dist = Math.hypot(dx, dz);
-
-          if (dist < 0.15) {
-            tactician.currentPos.copy(tactician.targetPos);
-            tactician.targetPos = null;
-            if (tactician.state === 'RUNNING') {
-              tactician.state = 'IDLE';
-            }
-          } else {
-            tactician.state = 'RUNNING';
-            const targetAngle = Math.atan2(dx, dz);
-            // Smooth rotation towards travel direction
-            tactician.facingAngle = THREE.MathUtils.lerp(
-              tactician.facingAngle,
-              targetAngle,
-              Math.min(1, delta * 14)
-            );
-
-            // Advance position
-            const moveStep = Math.min(dist, tactician.speed * delta);
-            tactician.currentPos.x += (dx / dist) * moveStep;
-            tactician.currentPos.z += (dz / dist) * moveStep;
-          }
-        }
-
-        // Apply position and rotation to Three.js Group
-        tactician.group.position.set(
-          tactician.currentPos.x,
-          tactician.currentPos.y,
-          tactician.currentPos.z
+        const targetAngle = Math.atan2(dx, dz);
+        tactician.facingAngle = THREE.MathUtils.lerp(
+          tactician.facingAngle,
+          targetAngle,
+          Math.min(1, delta * 14)
         );
-        tactician.group.rotation.y = tactician.facingAngle;
 
-        // Animations based on state
-        if (avatar) {
-          if (tactician.state === 'RUNNING') {
-            const runBounce = Math.abs(Math.sin(elapsed * 16)) * 0.22;
-            const runTilt = Math.sin(elapsed * 16) * 0.14;
-            avatar.position.y = runBounce;
-            avatar.rotation.z = runTilt;
-            avatar.rotation.x = 0.15; // Lean forward
-          } else if (tactician.state === 'DANCE') {
-            tactician.group.rotation.y += delta * 9;
-            avatar.position.y = Math.abs(Math.sin(elapsed * 12)) * 0.28;
-            avatar.rotation.z = Math.sin(elapsed * 12) * 0.2;
-            avatar.rotation.x = 0;
-          } else if (tactician.state === 'TAUNT') {
-            avatar.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.45;
-            avatar.rotation.z = (Math.random() - 0.5) * 0.3;
-            avatar.rotation.x = -0.2;
-          } else if (tactician.state === 'CHEER' || tactician.state === 'LAUGH') {
-            avatar.position.y = Math.abs(Math.sin(elapsed * 14)) * 0.35;
-            avatar.rotation.z = Math.sin(elapsed * 14) * 0.18;
-            avatar.rotation.x = 0;
-          } else {
-            // Idle breathing
-            const idleBob = Math.sin(elapsed * 3.2 + (isPlayer ? 0 : 2)) * 0.06;
-            avatar.position.y = idleBob;
-            avatar.rotation.z = 0;
-            avatar.rotation.x = 0;
-          }
-        }
-      };
+        const moveStep = Math.min(dist, tactician.speed * delta);
+        tactician.currentPos.x += (dx / dist) * moveStep;
+        tactician.currentPos.z += (dz / dist) * moveStep;
+      }
+    } else if (tactician.state === 'IDLE' && tactician.stateTimer <= 0) {
+      // Reposo asegurado en Idle_Base
+      if (tactician.model3D?.currentActionName !== 'idle') {
+        tactician.model3D?.playAnimation('idle', 0.2);
+      }
+    }
 
+    // Aplicar posición y rotación a la entidad Three.js
+    tactician.group.position.set(
+      tactician.currentPos.x,
+      tactician.currentPos.y,
+      tactician.currentPos.z
+    );
+    tactician.group.rotation.y = tactician.facingAngle;
+
+    // Balanceo procedural (solo para muñecos básicos sin esqueleto 3D)
+    if (avatar && !tactician.model3D) {
+      if (tactician.state === 'RUNNING') {
+        const runBounce = Math.abs(Math.sin(elapsed * 16)) * 0.22;
+        const runTilt = Math.sin(elapsed * 16) * 0.14;
+        avatar.position.y = runBounce;
+        avatar.rotation.z = runTilt;
+        avatar.rotation.x = 0.15;
+      } else if (tactician.state === 'DANCE') {
+        tactician.group.rotation.y += delta * 9;
+        avatar.position.y = Math.abs(Math.sin(elapsed * 12)) * 0.28;
+        avatar.rotation.z = Math.sin(elapsed * 12) * 0.2;
+        avatar.rotation.x = 0;
+      } else if (tactician.state === 'TAUNT') {
+        avatar.position.y = Math.abs(Math.sin(elapsed * 9)) * 0.45;
+        avatar.rotation.z = (Math.random() - 0.5) * 0.3;
+        avatar.rotation.x = -0.2;
+      } else if (tactician.state === 'CHEER' || tactician.state === 'LAUGH') {
+        avatar.position.y = Math.abs(Math.sin(elapsed * 14)) * 0.35;
+        avatar.rotation.z = Math.sin(elapsed * 14) * 0.18;
+        avatar.rotation.x = 0;
+      } else {
+        const idleBob = Math.sin(elapsed * 3.2 + (isPlayer ? 0 : 2)) * 0.06;
+        avatar.position.y = idleBob;
+        avatar.rotation.z = 0;
+        avatar.rotation.x = 0;
+      }
+    }
+  };
       animateTactician(playerLegendEntityRef.current, true);
       animateTactician(opponentLegendEntityRef.current, false);
 
@@ -736,11 +881,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
           const t = age / ping.duration;
           const scale = 1 + t * 0.8;
           ping.mesh.scale.set(scale, 1, scale);
-          const ring = ping.mesh.getObjectByName('ping_ring') as THREE.Mesh;
+          const ring = ping.mesh.getObjectByName("ping_ring") as THREE.Mesh;
           if (ring && ring.material) {
             (ring.material as THREE.MeshBasicMaterial).opacity = 1 - t;
           }
-          const core = ping.mesh.getObjectByName('ping_core') as THREE.Mesh;
+          const core = ping.mesh.getObjectByName("ping_core") as THREE.Mesh;
           if (core && core.material) {
             (core.material as THREE.MeshBasicMaterial).opacity = 1 - t * 0.8;
           }
@@ -762,11 +907,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       renderer.setSize(w, h);
     };
 
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
       if (renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement);
       }
@@ -783,13 +928,23 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       .filter((u): u is BoardUnit => u !== null)
       .map((u) => ({
         ...u,
-        team: 'enemy' as const,
+        team: "enemy" as const,
       }));
 
     // Units to render: during combat, use active combat units from engine + bench; during planning, use board + bench + enemy bench
-    const displayUnits: BoardUnit[] = isCombatPhase && combatEngine
-      ? [...combatEngine.allies, ...combatEngine.enemies, ...benchUnits.filter((u): u is BoardUnit => u !== null), ...enemyBenchList]
-      : [...boardUnits, ...benchUnits.filter((u): u is BoardUnit => u !== null), ...enemyBenchList];
+    const displayUnits: BoardUnit[] =
+      isCombatPhase && combatEngine
+        ? [
+            ...combatEngine.allies,
+            ...combatEngine.enemies,
+            ...benchUnits.filter((u): u is BoardUnit => u !== null),
+            ...enemyBenchList,
+          ]
+        : [
+            ...boardUnits,
+            ...benchUnits.filter((u): u is BoardUnit => u !== null),
+            ...enemyBenchList,
+          ];
 
     const currentIds = new Set(displayUnits.map((u) => u.instanceId));
 
@@ -806,7 +961,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       let group = unitMeshesRef.current.get(unit.instanceId);
 
       // If unit starLevel changed, remove and recreate with new scale & aura
-      if (group && group.userData.unit && (group.userData.unit as BoardUnit).starLevel !== unit.starLevel) {
+      if (
+        group &&
+        group.userData.unit &&
+        (group.userData.unit as BoardUnit).starLevel !== unit.starLevel
+      ) {
         scene.remove(group);
         unitMeshesRef.current.delete(unit.instanceId);
         group = undefined;
@@ -822,21 +981,30 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       if (unit.instanceId !== draggedUnitRef.current?.instanceId) {
         let targetPos = { x: 0, y: 0.2, z: 0 };
         if (unit.benchIndex !== null) {
-          targetPos = unit.team === 'enemy'
-            ? enemyBenchIndexToWorld3D(unit.benchIndex)
-            : benchIndexToWorld3D(unit.benchIndex);
+          targetPos =
+            unit.team === "enemy"
+              ? enemyBenchIndexToWorld3D(unit.benchIndex)
+              : benchIndexToWorld3D(unit.benchIndex);
         } else if (unit.gridPosition) {
           targetPos = axialToWorld3D(unit.gridPosition, 0.2);
         }
 
         // Smooth position lerp
-        group.position.x = THREE.MathUtils.lerp(group.position.x, targetPos.x, 0.35);
-        group.position.z = THREE.MathUtils.lerp(group.position.z, targetPos.z, 0.35);
+        group.position.x = THREE.MathUtils.lerp(
+          group.position.x,
+          targetPos.x,
+          0.35,
+        );
+        group.position.z = THREE.MathUtils.lerp(
+          group.position.z,
+          targetPos.z,
+          0.35,
+        );
         group.scale.set(1.0, 1.0, 1.0);
       }
 
       // Rotate towards enemy side (or target)
-      if (unit.team === 'enemy') {
+      if (unit.team === "enemy") {
         group.rotation.y = Math.PI;
       } else {
         group.rotation.y = 0;
@@ -848,13 +1016,16 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       updateUnitHealthSprite(group, unit);
 
       // Update selection indicator
-      let selectRing = group.getObjectByName('select_ring');
+      let selectRing = group.getObjectByName("select_ring");
       const isSelected = unit.instanceId === selectedUnitId;
       if (isSelected && !selectRing) {
         const rGeo = new THREE.RingGeometry(0.75, 0.85, 32);
-        const rMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide });
+        const rMat = new THREE.MeshBasicMaterial({
+          color: 0xfacc15,
+          side: THREE.DoubleSide,
+        });
         selectRing = new THREE.Mesh(rGeo, rMat);
-        selectRing.name = 'select_ring';
+        selectRing.name = "select_ring";
         selectRing.rotation.x = Math.PI / 2;
         selectRing.position.y = -0.15;
         group.add(selectRing);
@@ -862,31 +1033,44 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         group.remove(selectRing);
       }
     }
-  }, [boardUnits, benchUnits, enemyBenchUnits, combatEngine, isCombatPhase, selectedUnitId]);
+  }, [
+    boardUnits,
+    benchUnits,
+    enemyBenchUnits,
+    combatEngine,
+    isCombatPhase,
+    selectedUnitId,
+  ]);
 
   // --- Little Legends (Tacticians) Lifecycle & Instantiation ---
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    // 1. Player Little Legend
+    // 1. Minileyenda del Jugador
     if (playerLegendEntityRef.current) {
       scene.remove(playerLegendEntityRef.current.group);
     }
     const playerStartPos = new THREE.Vector3(-6.2, 0.05, 5.4);
-    const { group: playerGroup, legendData: playerLegendData } = LittleLegendManager.createLittleLegendGroup(
-      playerLegendId,
-      true,
-      playerName,
-      (mixer) => {
-        unitMixersRef.current.set('player_legend_mixer', mixer);
-      }
-    );
+    const { group: playerGroup, legendData: playerLegendData } =
+      LittleLegendManager.createLittleLegendGroup(
+        playerLegendId,
+        true,
+        playerName,
+        (legend3d) => {
+          if (legend3d.mixer) {
+            unitMixersRef.current.set("player_legend_mixer", legend3d.mixer);
+          }
+          if (playerLegendEntityRef.current) {
+            playerLegendEntityRef.current.model3D = legend3d;
+          }
+        },
+      );
     playerGroup.position.copy(playerStartPos);
     scene.add(playerGroup);
 
     playerLegendEntityRef.current = {
-      id: 'player_legend',
+      id: "player_legend",
       isPlayer: true,
       name: playerName,
       legendData: playerLegendData,
@@ -894,30 +1078,37 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       currentPos: playerStartPos.clone(),
       targetPos: null,
       facingAngle: -Math.PI / 4,
-      state: 'IDLE',
+      state: "IDLE",
       stateTimer: 0,
       speed: 9.0,
       dustTimer: 0,
+      model3D: null,
     };
 
-    // 2. Opponent Little Legend
+    // 2. Minileyenda del Rival
     if (opponentLegendEntityRef.current) {
       scene.remove(opponentLegendEntityRef.current.group);
     }
     const oppStartPos = new THREE.Vector3(6.2, 0.05, -5.4);
-    const { group: oppGroup, legendData: oppLegendData } = LittleLegendManager.createLittleLegendGroup(
-      opponentLegendId,
-      false,
-      opponentName,
-      (mixer) => {
-        unitMixersRef.current.set('opp_legend_mixer', mixer);
-      }
-    );
+    const { group: oppGroup, legendData: oppLegendData } =
+      LittleLegendManager.createLittleLegendGroup(
+        opponentLegendId,
+        false,
+        opponentName,
+        (legend3d) => {
+          if (legend3d.mixer) {
+            unitMixersRef.current.set("opp_legend_mixer", legend3d.mixer);
+          }
+          if (opponentLegendEntityRef.current) {
+            opponentLegendEntityRef.current.model3D = legend3d;
+          }
+        },
+      );
     oppGroup.position.copy(oppStartPos);
     scene.add(oppGroup);
 
     opponentLegendEntityRef.current = {
-      id: 'opp_legend',
+      id: "opp_legend",
       isPlayer: false,
       name: opponentName,
       legendData: oppLegendData,
@@ -925,10 +1116,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       currentPos: oppStartPos.clone(),
       targetPos: null,
       facingAngle: (3 * Math.PI) / 4,
-      state: 'IDLE',
+      state: "IDLE",
       stateTimer: 0,
       speed: 9.0,
       dustTimer: 0,
+      model3D: null,
     };
   }, [playerLegendId, opponentLegendId, playerName, opponentName]);
 
@@ -939,14 +1131,20 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       const unit = inspectingUnitRef.current;
       let pos = { x: 0, y: 0.2, z: 0 };
       if (unit.benchIndex !== null) {
-        pos = unit.team === 'enemy' ? enemyBenchIndexToWorld3D(unit.benchIndex) : benchIndexToWorld3D(unit.benchIndex);
+        pos =
+          unit.team === "enemy"
+            ? enemyBenchIndexToWorld3D(unit.benchIndex)
+            : benchIndexToWorld3D(unit.benchIndex);
       } else if (unit.gridPosition) {
         pos = axialToWorld3D(unit.gridPosition, 0.2);
       }
       targetLookAtRef.current.set(pos.x, 0.8, pos.z);
       const ratio = zoomDistanceRef.current / 27.0;
       targetCameraPosRef.current.set(pos.x, 5.5 * ratio, pos.z + 5.2 * ratio);
-    } else if (isFollowingTacticianLocalRef.current && playerLegendEntityRef.current) {
+    } else if (
+      isFollowingTacticianLocalRef.current &&
+      playerLegendEntityRef.current
+    ) {
       // Focus on Little Legend
       const pPos = playerLegendEntityRef.current.currentPos;
       targetLookAtRef.current.set(pPos.x, 0.8, pPos.z);
@@ -963,11 +1161,16 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   // Connect External Camera & Emote Action Refs
   useEffect(() => {
     if (onTriggerEmoteRef) {
-      onTriggerEmoteRef.current = (emote: 'DANCE' | 'TAUNT' | 'CHEER' | 'LAUGH') => {
+      onTriggerEmoteRef.current = (
+        emote: "DANCE" | "TAUNT" | "CHEER" | "LAUGH",
+      ) => {
         const tactician = playerLegendEntityRef.current;
         if (!tactician) return;
         tactician.state = emote;
         tactician.stateTimer = 2.8;
+
+        // Reproducir animación del modelo 3D
+        tactician.model3D?.playAnimation(emote.toLowerCase());
 
         if (tactician.bubbleSprite) {
           tactician.group.remove(tactician.bubbleSprite);
@@ -1026,7 +1229,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         }
       };
     }
-  }, [onToggleFollowTacticianRef, setIsFollowingTactician, setIsInspectingChampion]);
+  }, [
+    onToggleFollowTacticianRef,
+    setIsFollowingTactician,
+    setIsInspectingChampion,
+  ]);
 
   useEffect(() => {
     if (onInspectUnitRef) {
@@ -1048,13 +1255,16 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const zoomDelta = e.deltaY * 0.015;
-      zoomDistanceRef.current = Math.max(7.0, Math.min(34.0, zoomDistanceRef.current + zoomDelta));
+      zoomDistanceRef.current = Math.max(
+        7.0,
+        Math.min(34.0, zoomDistanceRef.current + zoomDelta),
+      );
       updateCameraTarget();
     };
 
-    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: false });
     return () => {
-      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener("wheel", onWheel);
     };
   }, []);
 
@@ -1099,7 +1309,13 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         birthTime: now,
       });
     }
-  }, [combatEngine, combatEngine?.damageEvents, combatEngine?.projectileEvents, combatEngine?.vfxEvents, isCombatPhase]);
+  }, [
+    combatEngine,
+    combatEngine?.damageEvents,
+    combatEngine?.projectileEvents,
+    combatEngine?.vfxEvents,
+    isCombatPhase,
+  ]);
 
   // --- Raycast & Mouse Handling ---
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -1112,7 +1328,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current);
 
     // 1. Right-Click: Direct Little Legend Walk Order with Golden/Cyan Ping
-    if (e.button === 2) {
+     if (e.button === 2) {
       e.preventDefault();
       const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
       const hitPoint = new THREE.Vector3();
@@ -1124,10 +1340,14 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         const tactician = playerLegendEntityRef.current;
         if (tactician) {
           tactician.targetPos = hitPoint.clone();
-          tactician.state = 'RUNNING';
+          tactician.state = "RUNNING";
+
+          // 🟢 Activar inmediatamente Run_Base / Run_Haste al hacer click
+          tactician.model3D?.playAnimation("run", 0.12);
 
           // Spawn animated click ping
-          const pingMesh = LittleLegendManager.createMoveClickPingMesh(0x00f0ff);
+          const pingMesh =
+            LittleLegendManager.createMoveClickPingMesh(0x00f0ff);
           pingMesh.position.set(hitPoint.x, 0.05, hitPoint.z);
           sceneRef.current.add(pingMesh);
           activeClickPingsRef.current.push({
@@ -1172,14 +1392,18 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
           return;
         }
 
-        if (!isCombatPhase && unit.team !== 'enemy') {
+        if (!isCombatPhase && unit.team !== "enemy") {
           setDraggedUnit(unit);
           draggedUnitRef.current = unit;
 
           // Set initial drag pos from clicked object
           const currentGroup = unitMeshesRef.current.get(unit.instanceId);
           if (currentGroup) {
-            dragPosRef.current.set(currentGroup.position.x, 1.25, currentGroup.position.z);
+            dragPosRef.current.set(
+              currentGroup.position.x,
+              1.25,
+              currentGroup.position.z,
+            );
           }
 
           if (e.currentTarget && e.currentTarget.setPointerCapture) {
@@ -1195,7 +1419,10 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     // 3. Raycast Hexes or Bench when clicking directly without dragging
     const hexObjects = Array.from(hexMeshesRef.current.values());
     const benchObjects = benchHexMeshesRef.current;
-    const groundHits = raycaster.intersectObjects([...hexObjects, ...benchObjects]);
+    const groundHits = raycaster.intersectObjects([
+      ...hexObjects,
+      ...benchObjects,
+    ]);
 
     if (groundHits.length > 0) {
       const hit = groundHits[0].object;
@@ -1223,9 +1450,10 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         const tactician = playerLegendEntityRef.current;
         if (tactician) {
           tactician.targetPos = hitPoint.clone();
-          tactician.state = 'RUNNING';
+          tactician.state = "RUNNING";
 
-          const pingMesh = LittleLegendManager.createMoveClickPingMesh(0xfacc15);
+          const pingMesh =
+            LittleLegendManager.createMoveClickPingMesh(0xfacc15);
           pingMesh.position.set(hitPoint.x, 0.05, hitPoint.z);
           sceneRef.current.add(pingMesh);
           activeClickPingsRef.current.push({
@@ -1274,8 +1502,16 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     if (hasGroundHit) {
       // Find nearest board hex (allied or enemy) or bench pedestal
       let bestDist = Infinity;
-      let bestHex: { row: number; col: number; isAlly: boolean; pos: { x: number; y: number; z: number } } | null = null;
-      let bestBench: { benchIdx: number; pos: { x: number; y: number; z: number } } | null = null;
+      let bestHex: {
+        row: number;
+        col: number;
+        isAlly: boolean;
+        pos: { x: number; y: number; z: number };
+      } | null = null;
+      let bestBench: {
+        benchIdx: number;
+        pos: { x: number; y: number; z: number };
+      } | null = null;
 
       // 1. Check all 8 rows x 7 cols board hexes
       for (let r = 0; r < BOARD_ROWS; r++) {
@@ -1309,26 +1545,44 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
           setHoveredBenchIdx(null);
 
           const axial = rowColToAxial(bestHex.row, bestHex.col);
-          const existingUnit = boardUnits.find(
-            (u) => u.gridPosition && u.gridPosition.q === axial.q && u.gridPosition.r === axial.r
-          ) || null;
+          const existingUnit =
+            boardUnits.find(
+              (u) =>
+                u.gridPosition &&
+                u.gridPosition.q === axial.q &&
+                u.gridPosition.r === axial.r,
+            ) || null;
           setHoveredTargetUnit(existingUnit);
 
           if (dragHighlightMeshRef.current) {
-            dragHighlightMeshRef.current.position.set(bestHex.pos.x, 0.12, bestHex.pos.z);
+            dragHighlightMeshRef.current.position.set(
+              bestHex.pos.x,
+              0.12,
+              bestHex.pos.z,
+            );
             dragHighlightMeshRef.current.visible = true;
 
             const color = bestHex.isAlly
-              ? (existingUnit ? 0xa855f7 : 0xf59e0b) // Purple for swap, Gold for ally
+              ? existingUnit
+                ? 0xa855f7
+                : 0xf59e0b // Purple for swap, Gold for ally
               : 0xef4444; // Bright Red for enemy area (forbidden)
 
-            const ringMesh = dragHighlightMeshRef.current.getObjectByName('hl_ring') as THREE.Mesh;
-            const innerMesh = dragHighlightMeshRef.current.getObjectByName('hl_inner') as THREE.Mesh;
+            const ringMesh = dragHighlightMeshRef.current.getObjectByName(
+              "hl_ring",
+            ) as THREE.Mesh;
+            const innerMesh = dragHighlightMeshRef.current.getObjectByName(
+              "hl_inner",
+            ) as THREE.Mesh;
             if (ringMesh && ringMesh.material) {
-              (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(color);
+              (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(
+                color,
+              );
             }
             if (innerMesh && innerMesh.material) {
-              (innerMesh.material as THREE.MeshBasicMaterial).color.setHex(color);
+              (innerMesh.material as THREE.MeshBasicMaterial).color.setHex(
+                color,
+              );
             }
           }
         } else if (bestBench) {
@@ -1339,17 +1593,29 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
           setHoveredTargetUnit(existingBenchUnit);
 
           if (dragHighlightMeshRef.current) {
-            dragHighlightMeshRef.current.position.set(bestBench.pos.x, 0.12, bestBench.pos.z);
+            dragHighlightMeshRef.current.position.set(
+              bestBench.pos.x,
+              0.12,
+              bestBench.pos.z,
+            );
             dragHighlightMeshRef.current.visible = true;
 
             const color = existingBenchUnit ? 0xa855f7 : 0x38bdf8; // Purple for swap, Cyan for bench
-            const ringMesh = dragHighlightMeshRef.current.getObjectByName('hl_ring') as THREE.Mesh;
-            const innerMesh = dragHighlightMeshRef.current.getObjectByName('hl_inner') as THREE.Mesh;
+            const ringMesh = dragHighlightMeshRef.current.getObjectByName(
+              "hl_ring",
+            ) as THREE.Mesh;
+            const innerMesh = dragHighlightMeshRef.current.getObjectByName(
+              "hl_inner",
+            ) as THREE.Mesh;
             if (ringMesh && ringMesh.material) {
-              (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(color);
+              (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(
+                color,
+              );
             }
             if (innerMesh && innerMesh.material) {
-              (innerMesh.material as THREE.MeshBasicMaterial).color.setHex(color);
+              (innerMesh.material as THREE.MeshBasicMaterial).color.setHex(
+                color,
+              );
             }
           }
         }
@@ -1407,7 +1673,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   // HTML5 Drag & Drop from HUD cards
   const handleHtmlDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
     if (!rendererRef.current || !cameraRef.current) return;
     const rect = rendererRef.current.domElement.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1419,7 +1685,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     const hitPoint = new THREE.Vector3();
     if (raycaster.ray.intersectPlane(groundPlane, hitPoint)) {
       let bestDist = Infinity;
-      let bestHex: { row: number; col: number; pos: { x: number; y: number; z: number } } | null = null;
+      let bestHex: {
+        row: number;
+        col: number;
+        pos: { x: number; y: number; z: number };
+      } | null = null;
       for (let r = 4; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
           const axial = rowColToAxial(r, c);
@@ -1434,11 +1704,19 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       if (bestHex && bestDist < 1.6) {
         setHoveredHex({ row: bestHex.row, col: bestHex.col });
         if (dragHighlightMeshRef.current) {
-          dragHighlightMeshRef.current.position.set(bestHex.pos.x, 0.12, bestHex.pos.z);
+          dragHighlightMeshRef.current.position.set(
+            bestHex.pos.x,
+            0.12,
+            bestHex.pos.z,
+          );
           dragHighlightMeshRef.current.visible = true;
-          const ringMesh = dragHighlightMeshRef.current.getObjectByName('hl_ring') as THREE.Mesh;
+          const ringMesh = dragHighlightMeshRef.current.getObjectByName(
+            "hl_ring",
+          ) as THREE.Mesh;
           if (ringMesh && ringMesh.material) {
-            (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(0xf59e0b);
+            (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(
+              0xf59e0b,
+            );
           }
         }
       }
@@ -1447,7 +1725,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
   const handleHtmlDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const unitId = e.dataTransfer.getData('text/plain');
+    const unitId = e.dataTransfer.getData("text/plain");
     if (unitId && hoveredHex && hoveredHex.row >= 4) {
       onMoveUnit(unitId, hoveredHex.row, hoveredHex.col);
     }
@@ -1457,17 +1735,21 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     }
   };
 
-  const draggedChampData = draggedUnit ? CHAMPIONS_DATA[draggedUnit.championId] : null;
-  const sellRefund = draggedUnit && draggedChampData
-    ? draggedChampData.cost * (draggedUnit.starLevel === 3 ? 9 : draggedUnit.starLevel === 2 ? 3 : 1)
-    : 1;
+  const draggedChampData = draggedUnit
+    ? CHAMPIONS_DATA[draggedUnit.championId]
+    : null;
+  const sellRefund =
+    draggedUnit && draggedChampData
+      ? draggedChampData.cost *
+        (draggedUnit.starLevel === 3 ? 9 : draggedUnit.starLevel === 2 ? 3 : 1)
+      : 1;
 
   return (
     <div
       ref={containerRef}
       id="three-arena-container"
       className={`relative w-full h-full select-none overflow-hidden ${
-        draggedUnit ? 'cursor-grabbing' : 'cursor-default'
+        draggedUnit ? "cursor-grabbing" : "cursor-default"
       }`}
       onContextMenu={(e) => e.preventDefault()}
       onPointerDown={handlePointerDown}
@@ -1493,16 +1775,22 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
             </span>
           ) : hoveredHex && hoveredHex.row >= 4 ? (
             <span className="text-emerald-300">
-              {hoveredTargetUnit ? `🔄 Intercambiar con ${CHAMPIONS_DATA[hoveredTargetUnit.championId]?.name}` : `Colocar en Fila ${hoveredHex.row - 3}, Col ${hoveredHex.col + 1}`}
+              {hoveredTargetUnit
+                ? `🔄 Intercambiar con ${CHAMPIONS_DATA[hoveredTargetUnit.championId]?.name}`
+                : `Colocar en Fila ${hoveredHex.row - 3}, Col ${hoveredHex.col + 1}`}
             </span>
           ) : hoveredHex && hoveredHex.row < 4 ? (
             <span className="text-rose-400">⚠️ Zona enemiga no permitida</span>
           ) : hoveredBenchIdx !== null ? (
             <span className="text-cyan-300">
-              {hoveredTargetUnit ? `🔄 Intercambiar en Banca slot B${hoveredBenchIdx + 1}` : `Mover a Banca slot B${hoveredBenchIdx + 1}`}
+              {hoveredTargetUnit
+                ? `🔄 Intercambiar en Banca slot B${hoveredBenchIdx + 1}`
+                : `Mover a Banca slot B${hoveredBenchIdx + 1}`}
             </span>
           ) : (
-            <span className="text-slate-400">Arrastra hacia el tablero, la banca o la tienda para vender</span>
+            <span className="text-slate-400">
+              Arrastra hacia el tablero, la banca o la tienda para vender
+            </span>
           )}
         </div>
       )}
@@ -1513,7 +1801,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 // --- Helper: Create 3D Champion Group ---
 function createUnitGroup(
   unit: BoardUnit,
-  unitMixersMap?: Map<string, THREE.AnimationMixer>
+  unitMixersMap?: Map<string, THREE.AnimationMixer>,
 ): THREE.Group {
   const base = CHAMPIONS_DATA[unit.championId];
   const group = new THREE.Group();
@@ -1522,33 +1810,46 @@ function createUnitGroup(
 
   // Set initial 3D position immediately according to bench or board coordinates
   if (unit.benchIndex !== null) {
-    const pos = unit.team === 'enemy'
-      ? enemyBenchIndexToWorld3D(unit.benchIndex)
-      : benchIndexToWorld3D(unit.benchIndex);
+    const pos =
+      unit.team === "enemy"
+        ? enemyBenchIndexToWorld3D(unit.benchIndex)
+        : benchIndexToWorld3D(unit.benchIndex);
     group.position.set(pos.x, pos.y, pos.z);
   } else if (unit.gridPosition) {
     const pos = axialToWorld3D(unit.gridPosition, 0.2);
     group.position.set(pos.x, pos.y, pos.z);
   }
 
-  const starScale = unit.starLevel === 3 ? 1.35 : unit.starLevel === 2 ? 1.15 : 1.0;
-  const isAlly = unit.team === 'ally';
-  const unitColor = new THREE.Color(base ? base.color : isAlly ? 0x3b82f6 : 0xef4444);
+  const starScale =
+    unit.starLevel === 3 ? 1.35 : unit.starLevel === 2 ? 1.15 : 1.0;
+  const isAlly = unit.team === "ally";
+  const unitColor = new THREE.Color(
+    base ? base.color : isAlly ? 0x3b82f6 : 0xef4444,
+  );
 
   // Subtle Team Pedestal Ring on Floor
-  const pedestalGeo = new THREE.CylinderGeometry(0.75 * starScale, 0.85 * starScale, 0.08, 24);
+  const pedestalGeo = new THREE.CylinderGeometry(
+    0.75 * starScale,
+    0.85 * starScale,
+    0.08,
+    24,
+  );
   const pedestalMat = new THREE.MeshStandardMaterial({
     color: isAlly ? 0x0f172a : 0x1e1b4b,
     roughness: 0.7,
     metalness: 0.3,
   });
   const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
-  pedestal.name = 'unit_pedestal';
+  pedestal.name = "unit_pedestal";
   pedestal.position.y = 0.04;
   pedestal.receiveShadow = true;
   group.add(pedestal);
 
-  const teamRingGeo = new THREE.RingGeometry(0.76 * starScale, 0.86 * starScale, 32);
+  const teamRingGeo = new THREE.RingGeometry(
+    0.76 * starScale,
+    0.86 * starScale,
+    32,
+  );
   const teamRingMat = new THREE.MeshBasicMaterial({
     color: isAlly ? 0x00e5ff : 0xf43f5e,
     side: THREE.DoubleSide,
@@ -1562,17 +1863,26 @@ function createUnitGroup(
 
   // Fallback / Placeholder Avatar Group (while 3D model loads or if not available)
   const fallbackAvatar = new THREE.Group();
-  fallbackAvatar.name = 'fallback_avatar';
+  fallbackAvatar.name = "fallback_avatar";
 
   let bodyGeo: THREE.BufferGeometry;
-  if (base?.modelType === 'golem' || base?.modelType === 'warrior') {
-    bodyGeo = new THREE.BoxGeometry(0.9 * starScale, 1.35 * starScale, 0.9 * starScale);
-  } else if (base?.modelType === 'mage') {
+  if (base?.modelType === "golem" || base?.modelType === "warrior") {
+    bodyGeo = new THREE.BoxGeometry(
+      0.9 * starScale,
+      1.35 * starScale,
+      0.9 * starScale,
+    );
+  } else if (base?.modelType === "mage") {
     bodyGeo = new THREE.ConeGeometry(0.6 * starScale, 1.5 * starScale, 8);
-  } else if (base?.modelType === 'dragon') {
+  } else if (base?.modelType === "dragon") {
     bodyGeo = new THREE.DodecahedronGeometry(0.85 * starScale);
   } else {
-    bodyGeo = new THREE.CylinderGeometry(0.5 * starScale, 0.65 * starScale, 1.35 * starScale, 12);
+    bodyGeo = new THREE.CylinderGeometry(
+      0.5 * starScale,
+      0.65 * starScale,
+      1.35 * starScale,
+      12,
+    );
   }
 
   const bodyMat = new THREE.MeshStandardMaterial({
@@ -1610,7 +1920,7 @@ function createUnitGroup(
       if (group.userData.unit?.instanceId !== unit.instanceId) return;
 
       // Remove fallback placeholder avatar
-      const existingFallback = group.getObjectByName('fallback_avatar');
+      const existingFallback = group.getObjectByName("fallback_avatar");
       if (existingFallback) {
         group.remove(existingFallback);
       }
@@ -1618,9 +1928,9 @@ function createUnitGroup(
       // Instantiate authentic 3D champion model
       const { group: modelGroup, mixer } = championModelManager.instantiate(
         template,
-        unit.starLevel
+        unit.starLevel,
       );
-      modelGroup.name = 'champion_3d_model';
+      modelGroup.name = "champion_3d_model";
       group.add(modelGroup);
 
       if (mixer && unitMixersMap) {
@@ -1641,7 +1951,7 @@ function createUnitGroup(
       opacity: 0.85,
     });
     const aura = new THREE.Mesh(auraGeo, auraMat);
-    aura.name = 'star3_aura';
+    aura.name = "star3_aura";
     aura.rotation.x = Math.PI / 2;
     aura.position.y = 0.06;
     group.add(aura);
@@ -1649,7 +1959,7 @@ function createUnitGroup(
 
   // Healthbar Sprite above head - positioned proportionally above the taller 3D champion model
   const hpSprite = createHealthbarSprite(unit);
-  hpSprite.name = 'healthbar_sprite';
+  hpSprite.name = "healthbar_sprite";
   hpSprite.position.y = 2.45 * starScale;
   hpSprite.scale.set(1.5, 0.38, 1);
   group.add(hpSprite);
@@ -1659,15 +1969,18 @@ function createUnitGroup(
 
 // --- Helper: Render Dynamic Canvas Sprite for Health & Mana Bar ---
 function createHealthbarSprite(unit: BoardUnit): THREE.Sprite {
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = 180;
   canvas.height = 46;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext("2d")!;
 
   drawHealthbarOnCanvas(ctx, unit);
 
   const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+  });
   const sprite = new THREE.Sprite(material);
   sprite.userData = {
     canvas,
@@ -1679,7 +1992,7 @@ function createHealthbarSprite(unit: BoardUnit): THREE.Sprite {
 }
 
 function updateUnitHealthSprite(group: THREE.Group, unit: BoardUnit) {
-  const hpSprite = group.getObjectByName('healthbar_sprite') as THREE.Sprite;
+  const hpSprite = group.getObjectByName("healthbar_sprite") as THREE.Sprite;
   if (!hpSprite || !hpSprite.userData) return;
 
   const { ctx, canvas, texture } = hpSprite.userData;
@@ -1697,40 +2010,55 @@ function drawHealthbarOnCanvas(ctx: CanvasRenderingContext2D, unit: BoardUnit) {
   ctx.clearRect(0, 0, 180, 46);
 
   // Background box
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-  ctx.strokeStyle = '#334155';
+  ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+  ctx.strokeStyle = "#334155";
   ctx.lineWidth = 2;
   ctx.roundRect(4, 4, 172, 38, 4);
   ctx.fill();
   ctx.stroke();
 
   // Health Bar
-  const hpPercent = Math.max(0, Math.min(1, unit.currentHealth / Math.max(1, unit.maxHealth)));
-  ctx.fillStyle = unit.team === 'ally' ? '#22c55e' : '#ef4444';
+  const hpPercent = Math.max(
+    0,
+    Math.min(1, unit.currentHealth / Math.max(1, unit.maxHealth)),
+  );
+  ctx.fillStyle = unit.team === "ally" ? "#22c55e" : "#ef4444";
   ctx.fillRect(8, 8, 164 * hpPercent, 14);
 
   // Shield Overlay
   if (unit.shield > 0) {
-    const shieldPercent = Math.min(1, unit.shield / Math.max(1, unit.maxHealth));
-    ctx.fillStyle = 'rgba(250, 204, 21, 0.7)';
+    const shieldPercent = Math.min(
+      1,
+      unit.shield / Math.max(1, unit.maxHealth),
+    );
+    ctx.fillStyle = "rgba(250, 204, 21, 0.7)";
     ctx.fillRect(8, 8, 164 * shieldPercent, 14);
   }
 
   // Mana Bar
-  const manaPercent = Math.max(0, Math.min(1, unit.currentMana / Math.max(1, unit.maxMana)));
-  ctx.fillStyle = '#38bdf8';
+  const manaPercent = Math.max(
+    0,
+    Math.min(1, unit.currentMana / Math.max(1, unit.maxMana)),
+  );
+  ctx.fillStyle = "#38bdf8";
   ctx.fillRect(8, 26, 164 * manaPercent, 8);
 
   // Stars indicator
-  ctx.fillStyle = unit.starLevel === 3 ? '#facc15' : unit.starLevel === 2 ? '#e2e8f0' : '#d97706';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.textAlign = 'left';
-  const starsText = unit.starLevel === 3 ? '★★★' : unit.starLevel === 2 ? '★★' : '★';
+  ctx.fillStyle =
+    unit.starLevel === 3
+      ? "#facc15"
+      : unit.starLevel === 2
+        ? "#e2e8f0"
+        : "#d97706";
+  ctx.font = "bold 12px sans-serif";
+  ctx.textAlign = "left";
+  const starsText =
+    unit.starLevel === 3 ? "★★★" : unit.starLevel === 2 ? "★★" : "★";
   ctx.fillText(starsText, 10, 20);
 
   // Item dots
   if (unit.items && unit.items.length > 0) {
-    ctx.fillStyle = '#fbbf24';
+    ctx.fillStyle = "#fbbf24";
     for (let i = 0; i < unit.items.length; i++) {
       ctx.beginPath();
       ctx.arc(140 + i * 12, 15, 4, 0, Math.PI * 2);
@@ -1740,25 +2068,29 @@ function drawHealthbarOnCanvas(ctx: CanvasRenderingContext2D, unit: BoardUnit) {
 }
 
 // --- Helper: Floating Damage Number Sprite ---
-function createDamageSprite(amount: number, type: string, isCrit: boolean): THREE.Sprite {
-  const canvas = document.createElement('canvas');
+function createDamageSprite(
+  amount: number,
+  type: string,
+  isCrit: boolean,
+): THREE.Sprite {
+  const canvas = document.createElement("canvas");
   canvas.width = 128;
   canvas.height = 64;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext("2d")!;
 
-  let color = '#ffffff';
-  if (type === 'physical') color = '#fb923c';
-  else if (type === 'magic') color = '#c084fc';
-  else if (type === 'true') color = '#fef08a';
+  let color = "#ffffff";
+  if (type === "physical") color = "#fb923c";
+  else if (type === "magic") color = "#c084fc";
+  else if (type === "true") color = "#fef08a";
 
-  if (isCrit) color = '#ef4444';
+  if (isCrit) color = "#ef4444";
 
   ctx.fillStyle = color;
-  ctx.font = isCrit ? 'bold 36px sans-serif' : 'bold 28px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
+  ctx.font = isCrit ? "bold 36px sans-serif" : "bold 28px sans-serif";
+  ctx.textAlign = "center";
+  ctx.shadowColor = "rgba(0,0,0,0.9)";
   ctx.shadowBlur = 6;
-  ctx.fillText(`${amount}${isCrit ? '!' : ''}`, 64, 44);
+  ctx.fillText(`${amount}${isCrit ? "!" : ""}`, 64, 44);
 
   const texture = new THREE.CanvasTexture(canvas);
   const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });

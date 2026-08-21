@@ -39,13 +39,13 @@ export const SHOP_PROBABILITIES: Record<number, [number, number, number, number,
 };
 
 const BOT_NAMES = [
-  'VanguardBot',
-  'SorcererAI',
-  'ShadowMaster',
-  'DragonKnight',
-  'CyberLord',
-  'VoidQueen',
-  'CelestialKing',
+  'arcane_jinx_unbound',
+  'awakened_ao_shin',
+  'chibi_aatrox',
+  'birthday_fluttercake',
+  'chibi_battle_bat_xayah',
+  'chibi_battle_bat_xayah',
+  'chibi_battle_bat_xayah',
 ];
 
 const BOT_AVATARS = [
@@ -103,7 +103,7 @@ export class GameManager {
       name: 'Estratega (Modo Tablero)',
       isHuman: true,
       avatar: 'https://picsum.photos/seed/player1/120/120',
-      littleLegendId: 'river_sprite',
+      littleLegendId: 'prestige_chibi_spirit_blossom_ahri',
       health: 100,
       level: 8,
       currentXp: 0,
@@ -144,13 +144,13 @@ export class GameManager {
     this.players.push(human);
 
     const BOT_LEGENDS = [
-      'pengu_knight',
-      'scuttlecrab',
-      'cinderling',
-      'kobuko',
-      'teemo_chibi',
-      'pebbles',
-      'ahri_chibi',
+      'chibi_battle_bat_xayah',
+      'arcane_jinx_unbound',
+      'chibi_aatrox',
+      'prestige_chibi_spirit_blossom_ahri',
+      'chibi_battle_bat_xayah',
+      'arcane_jinx_unbound',
+      'chibi_aatrox',
     ];
 
     // 7 Bot players

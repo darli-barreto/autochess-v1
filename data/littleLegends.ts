@@ -1,3 +1,5 @@
+// --- ARCHIVO: src/data/littleLegends.ts ---
+
 export interface LittleLegendData {
   id: string;
   name: string;
@@ -6,12 +8,62 @@ export interface LittleLegendData {
   color: number;
   accentColor: number;
   icon: string;
-  modelId?: string; // 3D GLB model key if available
+  modelFile?: string; // Solo poner si el archivo .glb EXISTE en public/minileyendas/
+  scale?: number;
+  offsetY?: number;
   proceduralType?: 'river_sprite' | 'pengu' | 'dowsie' | 'furyhorn';
   description: string;
 }
 
 export const LITTLE_LEGENDS: LittleLegendData[] = [
+  {
+    id: 'prestige_chibi_spirit_blossom_ahri',
+    name: 'Chibi Ahri',
+    title: 'Espíritu de Nueve Colas',
+    rarity: 'mythic',
+    color: 0xf43f5e,
+    accentColor: 0xa855f7,
+    icon: '🦊',
+    modelFile: 'prestige_chibi_spirit_blossom_ahri.glb', // ✅ Archivo presente en public/minileyendas/
+    scale: 1.0,
+    description: 'Mítica estratega de espíritu zorro con orbes mágicos y giros celestiales.',
+  },
+   {
+    id: 'chibi_battle_bat_xayah',
+    name: 'Chibi Xayah Murciélago de Batalla',
+    title: 'Vanguardia Nocturna',
+    rarity: 'mythic',
+    color: 0xa855f7,
+    accentColor: 0xec4899,
+    icon: '🦇',
+    modelFile: 'chibi_battle_bat_xayah.glb', // 👈 Archivo del rival en public/minileyendas/
+    scale: 1.0,
+    description: 'Estratega alada con plumas afiladas y estilo de combate acrobático.',
+  },
+  {
+    id: 'arcane_jinx_unbound',
+    name: 'Jinx Arcane Desatada',
+    title: 'La Chispa del Caos',
+    rarity: 'mythic',
+    color: 0x06b6d4,
+    accentColor: 0xec4899,
+    icon: '💣',
+    modelFile: 'arcane_jinx_unbound.glb',
+    scale: 1.0,
+    description: 'Estratega explosiva con armas personalizadas y actitud caótica.',
+  },
+  {
+    id: 'chibi_aatrox',
+    name: 'Chibi Aatrox',
+    title: 'La Espada de los Oscuros',
+    rarity: 'mythic',
+    color: 0xef4444,
+    accentColor: 0x991b1b,
+    icon: '🗡️',
+    modelFile: 'chibi_aatrox.glb',
+    scale: 1.0,
+    description: 'Guerrero oscuro colosal listo para dominar la arena.',
+  },
   {
     id: 'river_sprite',
     name: 'Sprite del Río',
@@ -21,7 +73,7 @@ export const LITTLE_LEGENDS: LittleLegendData[] = [
     accentColor: 0x0284c7,
     icon: '🌊',
     proceduralType: 'river_sprite',
-    description: 'El fiel y clásico compañero de todo estratega. Brilla con energía de agua pura.',
+    description: 'El fiel y clásico compañero de todo estratega.',
   },
   {
     id: 'pengu_knight',
@@ -32,84 +84,7 @@ export const LITTLE_LEGENDS: LittleLegendData[] = [
     accentColor: 0xf59e0b,
     icon: '🐧',
     proceduralType: 'pengu',
-    description: 'El legendario espadachín emplumado con capa real y pasión por la victoria.',
-  },
-  {
-    id: 'scuttlecrab',
-    name: 'Kabu Escarabajo',
-    title: 'Cangrejo del Río Místico',
-    rarity: 'rare',
-    color: 0x10b981,
-    accentColor: 0x059669,
-    icon: '🦀',
-    modelId: 'scuttlecrab',
-    description: 'Ágil y escurridizo habitante del río que adora bailar sobre los hexágonos.',
-  },
-  {
-    id: 'cinderling',
-    name: 'Cinderling Ígneo',
-    title: 'Llama Danzante',
-    rarity: 'epic',
-    color: 0xf97316,
-    accentColor: 0xef4444,
-    icon: '🔥',
-    modelId: 'cinderling',
-    description: 'Espíritu de fuego voraz que deja estelas incandescentes al correr por la arena.',
-  },
-  {
-    id: 'kobuko',
-    name: 'Kobuko Panda',
-    title: 'Maestro de la Fortuna',
-    rarity: 'legendary',
-    color: 0x84cc16,
-    accentColor: 0xfacc15,
-    icon: '🐼',
-    modelId: 'kobuko',
-    description: 'Estratega pacífico y sabio que bendice las tiradas de la tienda con buena suerte.',
-  },
-  {
-    id: 'teemo_chibi',
-    name: 'Chibi Teemo',
-    title: 'Explorador Veloz',
-    rarity: 'mythic',
-    color: 0x14b8a6,
-    accentColor: 0x10b981,
-    icon: '🦡',
-    modelId: 'teemo',
-    description: 'El explorador más temido y adorable, siempre listo con sus risas y saltos acrobáticos.',
-  },
-  {
-    id: 'pebbles',
-    name: 'Pebbles Golem',
-    title: 'Roca Sagrada',
-    rarity: 'rare',
-    color: 0x64748b,
-    accentColor: 0x38bdf8,
-    icon: '🪨',
-    modelId: 'pebbles',
-    description: 'Pequeño golem de piedra rúnica que vibra con poder arcano.',
-  },
-  {
-    id: 'ahri_chibi',
-    name: 'Chibi Ahri',
-    title: 'Espíritu de Nueve Colas',
-    rarity: 'mythic',
-    color: 0xf43f5e,
-    accentColor: 0xa855f7,
-    icon: '🦊',
-    modelId: 'ahri',
-    description: 'Mítica estratega de espíritu zorro con orbes mágicos flotantes y giros celestiales.',
-  },
-  {
-    id: 'gromp',
-    name: 'Gromp Saltarín',
-    title: 'Señor del Pantano',
-    rarity: 'rare',
-    color: 0x0d9488,
-    accentColor: 0xa3e635,
-    icon: '🐸',
-    modelId: 'gromp',
-    description: 'Rana gigante que rebota con gracia sobre el tablero celebrando cada ronda.',
+    description: 'El legendario espadachín emplumado con capa real.',
   },
 ];
 
