@@ -1,6 +1,6 @@
 // src/components/arena/arenaConfig.ts
 
-import * as THREE from 'three';
+import * as THREE from "three";
 
 export const ARENA_CONFIG = {
   // Configuración de la Cámara
@@ -28,25 +28,25 @@ export const ARENA_CONFIG = {
       camOffsetZ: 5.2,
     },
   },
-  
+
   champions: {
-    baseHeight: 1.20, // 📏 Altura base calibrada al tamaño del hexágono
+    baseHeight: 1.2, // 📏 Altura base calibrada al tamaño del hexágono
 
     // 🌟 MULTIPLICADORES CON CONTRASTE VISUAL REAL:
     starScales: {
-      1: 0.85,  // 1★: Compacto y delimitado dentro de su hexágono
-      2: 1.25,  // 2★: +47% más grande que 1★ (cambio inmediato y notorio)
-      3: 1.70,  // 3★: +100% el doble de tamaño que 1★ + Aura Dorada
-      4: 2.20,  // 4★: Tamaño colosal / Titán + Aura Prismática
+      1: 1.0, // Base estándar
+      2: 1.25, // +25% (Notorio)
+      3: 1.5, // +50% (Grande + Aura Dorada)
+      4: 1.75, // +75% (Colosal + Aura Prismática)
     } as Record<number, number>,
 
     healthbarBaseOffsetY: 1.55, // Altura de la barra de vida calibrada
-    pedestalRadius: 0.48,       // Radio del pedestal para que no desborde el hexágono
+    pedestalRadius: 0.48, // Radio del pedestal para que no desborde el hexágono
   },
 
   // Colores de la Escena y Niebla
   scene: {
-    backgroundImage: "/bgtft1.jpg", 
+    backgroundImage: "/bgtft1.jpg",
     enableFog: false,
     fogColor: 0,
     fogNear: 45,
@@ -142,8 +142,8 @@ export const ARENA_CONFIG = {
   hexGrid: {
     radius: 0.7,
     height: 0.1,
-    spacingX: 2.2,   
-    spacingZ: 1.13,  
+    spacingX: 2.2,
+    spacingZ: 1.13,
     offsetX: 0.6,
     offsetZ: 0.7,
     ally: {
