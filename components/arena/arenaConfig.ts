@@ -9,7 +9,7 @@ export const ARENA_CONFIG = {
     near: 0.1,
     far: 1000,
     defaultPosition: new THREE.Vector3(0, 16.9, 20.0),
-  defaultLookAt: new THREE.Vector3(0, 0, 1.2),
+    defaultLookAt: new THREE.Vector3(0, 0, 1.2),
     zoom: {
       default: 27.0,
       min: 7.0,
@@ -28,12 +28,26 @@ export const ARENA_CONFIG = {
       camOffsetZ: 5.2,
     },
   },
+  
+  champions: {
+    baseHeight: 1.20, // 📏 Altura base calibrada al tamaño del hexágono
+
+    // 🌟 MULTIPLICADORES CON CONTRASTE VISUAL REAL:
+    starScales: {
+      1: 0.85,  // 1★: Compacto y delimitado dentro de su hexágono
+      2: 1.25,  // 2★: +47% más grande que 1★ (cambio inmediato y notorio)
+      3: 1.70,  // 3★: +100% el doble de tamaño que 1★ + Aura Dorada
+      4: 2.20,  // 4★: Tamaño colosal / Titán + Aura Prismática
+    } as Record<number, number>,
+
+    healthbarBaseOffsetY: 1.55, // Altura de la barra de vida calibrada
+    pedestalRadius: 0.48,       // Radio del pedestal para que no desborde el hexágono
+  },
 
   // Colores de la Escena y Niebla
   scene: {
-    // 🖼️ Ruta a tu imagen dentro de la carpeta /public (ej: public/arena-bg.jpg o public/arena-bg.webp)
     backgroundImage: "/bgtft1.jpg", 
-    enableFog: false, // Desactivado para que la niebla no opaque el fondo
+    enableFog: false,
     fogColor: 0,
     fogNear: 45,
     fogFar: 95,
@@ -91,7 +105,7 @@ export const ARENA_CONFIG = {
       width: 0,
       height: 0.3,
       depth: 12.2,
-      color: 0xf59e0b, // TFT Emerald Stone / Grass
+      color: 0xf59e0b,
       roughness: 0.55,
       metalness: 0.25,
       posY: -0.15,
@@ -128,11 +142,10 @@ export const ARENA_CONFIG = {
   hexGrid: {
     radius: 0.7,
     height: 0.1,
-     spacingX: 2.2,   
-     spacingZ: 1.13,  
-     // 📍 DESPLAZAMIENTO GLOBAL DEL TABLERO
-    offsetX: 0.6,     // Mover todo el tablero Izquierda (-) o Derecha (+)
-    offsetZ: 0.7,     // Mover todo el tablero Arriba (-) o Abajo (+)
+    spacingX: 2.2,   
+    spacingZ: 1.13,  
+    offsetX: 0.6,
+    offsetZ: 0.7,
     ally: {
       color: 0x241624,
       outlineColor: 0x00e5ff,
@@ -154,21 +167,21 @@ export const ARENA_CONFIG = {
     radius: 0,
     height: 0,
     ally: {
-      spacing: 1.65,   // ↔️ 1. SEPARACIÓN: Separa o junta las 9 casillas (más grande = banca más ancha)
-      radius: 0.85,    // 📏 2. TAMAÑO/ANCHO: Tamaño individual de cada hexágono
-      z: 6.2,          // ↕️ 3. POSICIÓN VERTICAL: Sube el valor para bajar la banca (ej: 6.8, 7.2)
-      xOffset: 0.46,    // ➡️ 4. DESPLAZAMIENTO LATERAL: Negativo (-) = Izquierda | Positivo (+) = Derecha
-      y: 0.1,          // ⬆️ 5. ALTURA 3D: Altura sobre el suelo para que los campeones no floten
-      height: 3.05,    // Grosor del cilindro
+      spacing: 1.65,
+      radius: 0.85,
+      z: 6.2,
+      xOffset: 0.46,
+      y: 0.1,
+      height: 3.05,
       color: 0xf59e,
       outlineColor: 0xf59e,
       innerRingColor: 0xf59e,
     },
     enemy: {
-      spacing: 1.65,   // ↔️ 1. SEPARACIÓN: Separa o junta las 9 casillas (más grande = banca más ancha)
-      radius: 0.85,    // 📏 2. TAMAÑO/ANCHO: Tamaño individual de cada hexágono
-      xOffset: 0.7,    // ➡️ 4. DESPLAZAMIENTO LATERAL: Negativo (-) = Izquierda | Positivo (+) = Derecha
-      z: -5,          // ↕️ 3. POSICIÓN VERTICAL: Sube el valor para bajar la banca (ej: 6.8, 7.2)
+      spacing: 1.65,
+      radius: 0.85,
+      xOffset: 0.7,
+      z: -5,
       color: 0x241620,
       outlineColor: 0xf43f5e,
       innerRingColor: 0xf43f5e,
@@ -179,7 +192,6 @@ export const ARENA_CONFIG = {
   dragHighlight: {
     outerRadius: 0.74,
     innerRadius: 0,
-    
     colorAlly: 0xf59e,
     colorSwap: 0xf59e,
     colorBench: 0x00d2ff,

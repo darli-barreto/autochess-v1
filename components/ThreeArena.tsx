@@ -609,10 +609,11 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     for (const unit of displayUnits) {
       let group = unitMeshesRef.current.get(unit.instanceId);
 
+      // ✅ FIX: Comparamos contra el valor primitivo guardado para detectar fusiones a 2★/3★
       if (
         group &&
-        group.userData.unit &&
-        (group.userData.unit as BoardUnit).starLevel !== unit.starLevel
+        group.userData.lastRenderedStarLevel !== undefined &&
+        group.userData.lastRenderedStarLevel !== unit.starLevel
       ) {
         scene.remove(group);
         unitMeshesRef.current.delete(unit.instanceId);
@@ -621,6 +622,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
       if (!group) {
         group = createUnitGroup(unit, unitMixersRef.current);
+        group.userData.lastRenderedStarLevel = unit.starLevel; // Registrar nivel de estrellas
         scene.add(group);
         unitMeshesRef.current.set(unit.instanceId, group);
       }
@@ -651,13 +653,14 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
 
       group.rotation.y = unit.team === "enemy" ? Math.PI : 0;
       group.userData.unit = unit;
+      group.userData.lastRenderedStarLevel = unit.starLevel;
 
       updateUnitHealthSprite(group, unit);
 
       let selectRing = group.getObjectByName("select_ring");
       const isSelected = unit.instanceId === selectedUnitId;
       if (isSelected && !selectRing) {
-        const rGeo = new THREE.RingGeometry(0.75, 0.85, 32);
+        const rGeo = new THREE.RingGeometry(0.55, 0.65, 32);
         const rMat = new THREE.MeshBasicMaterial({
           color: 0xfacc15,
           side: THREE.DoubleSide,

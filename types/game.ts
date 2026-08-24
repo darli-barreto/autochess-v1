@@ -9,6 +9,11 @@ export interface AxialCoord {
   r: number;
 }
 
+export interface BoardUnit {
+  // ...
+  starLevel: 1 | 2 | 3 | 4; // o number
+  // ...
+}
 export interface ChampionBaseData {
   id: string;
   name: string;

@@ -1,7 +1,10 @@
+// src/engine/championModelManager.ts
+
 import * as THREE from 'three';
 import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { ARENA_CONFIG } from '@/components/arena/arenaConfig';
 
 interface LoadedModelTemplate {
   scene: THREE.Group;
@@ -27,7 +30,6 @@ class ChampionModelManager {
     this.dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
     this.loader.setDRACOLoader(this.dracoLoader);
 
-    // Fetch list of available models from API
     this.refreshAvailableModels();
   }
 
@@ -57,7 +59,6 @@ class ChampionModelManager {
     if (this.availableModels[cleanId]) {
       return this.availableModels[cleanId];
     }
-    // Fallback direct URL candidates
     return `/api/champions-3d/${encodeURIComponent(cleanId)}_(tft_set_18).glb`;
   }
 
@@ -80,13 +81,11 @@ class ChampionModelManager {
       try {
         const gltf = await new Promise<GLTF>((resolve, reject) => {
           this.loader!.load(url, resolve, undefined, (err) => {
-            // Try alternate path if first failed
             const fallbackUrl = `/champs-3d/${cleanId}_(tft_set_18).glb`;
             this.loader!.load(fallbackUrl, resolve, undefined, reject);
           });
         });
 
-        // Normalize model geometry, bounding box and materials
         const scene = gltf.scene;
         scene.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -113,20 +112,18 @@ class ChampionModelManager {
           }
         });
 
-        // Compute Bounding Box to scale to ~2.1 units prominent TFT size
         const bbox = new THREE.Box3().setFromObject(scene);
         const size = new THREE.Vector3();
         bbox.getSize(size);
         const center = new THREE.Vector3();
         bbox.getCenter(center);
 
-        // Center horizontally
         scene.position.x = -center.x;
         scene.position.z = -center.z;
         scene.position.y = -bbox.min.y;
 
         const maxDim = Math.max(size.x, size.y, size.z, 0.01);
-        const targetHeight = 2.1;
+        const targetHeight = ARENA_CONFIG?.champions?.baseHeight ?? 1.20;
         const baseScale = targetHeight / (size.y > 0.1 ? size.y : maxDim);
 
         const template: LoadedModelTemplate = {
@@ -139,7 +136,7 @@ class ChampionModelManager {
         this.templates.set(cleanId, template);
         return template;
       } catch (err) {
-        console.warn(`[ChampionModelManager] No 3D model found or failed to load for "${championId}":`, err);
+        console.warn(`[ChampionModelManager] No 3D model found for "${championId}":`, err);
         return null;
       }
     })();
@@ -148,15 +145,20 @@ class ChampionModelManager {
     return promise;
   }
 
+  /**
+   * Instancia el modelo con el multiplicador dinámico para 1★, 2★, 3★ o 4★
+   */
   public instantiate(
     template: LoadedModelTemplate,
     starLevel: number = 1,
     customScaleMult?: number
   ): { group: THREE.Group; mixer: THREE.AnimationMixer | null } {
     const clonedScene = skeletonClone(template.scene) as THREE.Group;
+
     const starMult = customScaleMult !== undefined
       ? customScaleMult
-      : (starLevel === 3 ? 1.35 : starLevel === 2 ? 1.15 : 1.0);
+      : (ARENA_CONFIG?.champions?.starScales?.[starLevel] ?? (starLevel >= 4 ? 2.20 : starLevel === 3 ? 1.70 : starLevel === 2 ? 1.25 : 0.85));
+
     const totalScale = template.baseScale * starMult;
 
     const wrapperGroup = new THREE.Group();
@@ -166,7 +168,6 @@ class ChampionModelManager {
     let mixer: THREE.AnimationMixer | null = null;
     if (template.animations && template.animations.length > 0) {
       mixer = new THREE.AnimationMixer(clonedScene);
-      // Look for idle or run/walk animation or play first available animation
       const idleClip =
         template.animations.find((clip) => /idle|stand|wait/i.test(clip.name)) ||
         template.animations[0];

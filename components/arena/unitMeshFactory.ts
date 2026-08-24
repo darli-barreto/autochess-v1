@@ -5,6 +5,12 @@ import { BoardUnit } from '@/types/game';
 import { CHAMPIONS_DATA } from '@/data/champions';
 import { axialToWorld3D, benchIndexToWorld3D, enemyBenchIndexToWorld3D } from '@/engine/hexMath';
 import { championModelManager } from '@/engine/championModelManager';
+import { ARENA_CONFIG } from './arenaConfig';
+
+export function getChampionScale(starLevel: number): number {
+  return ARENA_CONFIG?.champions?.starScales?.[starLevel] ?? 
+    (starLevel >= 4 ? 2.20 : starLevel === 3 ? 1.70 : starLevel === 2 ? 1.25 : 0.85);
+}
 
 export function createUnitGroup(
   unit: BoardUnit,
@@ -13,7 +19,10 @@ export function createUnitGroup(
   const base = CHAMPIONS_DATA[unit.championId];
   const group = new THREE.Group();
   group.name = `unit_${unit.instanceId}`;
-  group.userData = { unit };
+  group.userData = { 
+    unit,
+    lastRenderedStarLevel: unit.starLevel 
+  };
 
   // Posición inicial 3D
   if (unit.benchIndex !== null) {
@@ -27,12 +36,18 @@ export function createUnitGroup(
     group.position.set(pos.x, pos.y, pos.z);
   }
 
-  const starScale = unit.starLevel === 3 ? 1.35 : unit.starLevel === 2 ? 1.15 : 1.0;
+  const starScale = getChampionScale(unit.starLevel);
   const isAlly = unit.team === 'ally';
   const unitColor = new THREE.Color(base ? base.color : isAlly ? 0x3b82f6 : 0xef4444);
 
-  // Pedestal del equipo
-  const pedestalGeo = new THREE.CylinderGeometry(0.75 * starScale, 0.85 * starScale, 0.08, 24);
+  // 1. Pedestal de suelo ajustado a la escala de la estrella
+  const pedRadius = (ARENA_CONFIG?.champions?.pedestalRadius ?? 0.48) * starScale;
+  const pedestalGeo = new THREE.CylinderGeometry(
+    pedRadius,
+    pedRadius + 0.06,
+    0.06,
+    24
+  );
   const pedestalMat = new THREE.MeshStandardMaterial({
     color: isAlly ? 0x0f172a : 0x1e1b4b,
     roughness: 0.7,
@@ -40,11 +55,15 @@ export function createUnitGroup(
   });
   const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
   pedestal.name = 'unit_pedestal';
-  pedestal.position.y = 0.04;
+  pedestal.position.y = 0.03;
   pedestal.receiveShadow = true;
   group.add(pedestal);
 
-  const teamRingGeo = new THREE.RingGeometry(0.76 * starScale, 0.86 * starScale, 32);
+  const teamRingGeo = new THREE.RingGeometry(
+    pedRadius + 0.01,
+    pedRadius + 0.07,
+    32
+  );
   const teamRingMat = new THREE.MeshBasicMaterial({
     color: isAlly ? 0x00e5ff : 0xf43f5e,
     side: THREE.DoubleSide,
@@ -53,22 +72,22 @@ export function createUnitGroup(
   });
   const teamRing = new THREE.Mesh(teamRingGeo, teamRingMat);
   teamRing.rotation.x = Math.PI / 2;
-  teamRing.position.y = 0.09;
+  teamRing.position.y = 0.065;
   group.add(teamRing);
 
-  // Placeholder procedural (mientras se descarga el modelo 3D)
+  // 2. Avatar Placeholder procedural (mientras descarga el GLB)
   const fallbackAvatar = new THREE.Group();
   fallbackAvatar.name = 'fallback_avatar';
 
   let bodyGeo: THREE.BufferGeometry;
   if (base?.modelType === 'golem' || base?.modelType === 'warrior') {
-    bodyGeo = new THREE.BoxGeometry(0.9 * starScale, 1.35 * starScale, 0.9 * starScale);
+    bodyGeo = new THREE.BoxGeometry(0.6 * starScale, 0.9 * starScale, 0.6 * starScale);
   } else if (base?.modelType === 'mage') {
-    bodyGeo = new THREE.ConeGeometry(0.6 * starScale, 1.5 * starScale, 8);
+    bodyGeo = new THREE.ConeGeometry(0.45 * starScale, 1.0 * starScale, 8);
   } else if (base?.modelType === 'dragon') {
-    bodyGeo = new THREE.DodecahedronGeometry(0.85 * starScale);
+    bodyGeo = new THREE.DodecahedronGeometry(0.6 * starScale);
   } else {
-    bodyGeo = new THREE.CylinderGeometry(0.5 * starScale, 0.65 * starScale, 1.35 * starScale, 12);
+    bodyGeo = new THREE.CylinderGeometry(0.35 * starScale, 0.45 * starScale, 0.95 * starScale, 12);
   }
 
   const bodyMat = new THREE.MeshStandardMaterial({
@@ -78,24 +97,24 @@ export function createUnitGroup(
     emissive: isAlly ? 0x000000 : 0x220000,
   });
   const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-  bodyMesh.position.y = 0.72 * starScale;
+  bodyMesh.position.y = 0.5 * starScale;
   bodyMesh.castShadow = true;
   bodyMesh.receiveShadow = true;
   fallbackAvatar.add(bodyMesh);
 
-  const headGeo = new THREE.SphereGeometry(0.38 * starScale, 16, 16);
+  const headGeo = new THREE.SphereGeometry(0.28 * starScale, 16, 16);
   const headMat = new THREE.MeshStandardMaterial({
     color: base?.accentColor || 0xffffff,
     roughness: 0.2,
     metalness: 0.4,
   });
   const headMesh = new THREE.Mesh(headGeo, headMat);
-  headMesh.position.y = 1.55 * starScale;
+  headMesh.position.y = 1.05 * starScale;
   headMesh.castShadow = true;
   fallbackAvatar.add(headMesh);
   group.add(fallbackAvatar);
 
-  // Carga asíncrona del modelo 3D GLTF
+  // 3. Carga e instanciación del modelo 3D GLTF
   championModelManager
     .loadModel(unit.championId)
     .then((template) => {
@@ -122,9 +141,9 @@ export function createUnitGroup(
       console.warn(`Could not attach 3D model for ${unit.championId}:`, err);
     });
 
-  // Aura dorada para 3 estrellas
+  // 4. Auras 3★ (Dorada) y 4★ (Prismática)
   if (unit.starLevel === 3) {
-    const auraGeo = new THREE.RingGeometry(0.92, 1.15, 32);
+    const auraGeo = new THREE.RingGeometry(pedRadius + 0.08, pedRadius + 0.22, 32);
     const auraMat = new THREE.MeshBasicMaterial({
       color: 0xfacc15,
       side: THREE.DoubleSide,
@@ -134,15 +153,29 @@ export function createUnitGroup(
     const aura = new THREE.Mesh(auraGeo, auraMat);
     aura.name = 'star3_aura';
     aura.rotation.x = Math.PI / 2;
-    aura.position.y = 0.06;
+    aura.position.y = 0.05;
+    group.add(aura);
+  } else if (unit.starLevel >= 4) {
+    const auraGeo = new THREE.RingGeometry(pedRadius + 0.1, pedRadius + 0.28, 32);
+    const auraMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95,
+    });
+    const aura = new THREE.Mesh(auraGeo, auraMat);
+    aura.name = 'star4_aura';
+    aura.rotation.x = Math.PI / 2;
+    aura.position.y = 0.05;
     group.add(aura);
   }
 
-  // Sprite de barra de vida y maná
+  // 5. Barra de vida proporcionalmente ubicada
   const hpSprite = createHealthbarSprite(unit);
   hpSprite.name = 'healthbar_sprite';
-  hpSprite.position.y = 2.45 * starScale;
-  hpSprite.scale.set(1.5, 0.38, 1);
+  const baseHpY = ARENA_CONFIG?.champions?.healthbarBaseOffsetY ?? 1.55;
+  hpSprite.position.y = baseHpY * starScale;
+  hpSprite.scale.set(1.3 * Math.min(1.2, starScale), 0.33 * Math.min(1.2, starScale), 1);
   group.add(hpSprite);
 
   return group;
@@ -186,7 +219,6 @@ export function updateUnitHealthSprite(group: THREE.Group, unit: BoardUnit) {
 export function drawHealthbarOnCanvas(ctx: CanvasRenderingContext2D, unit: BoardUnit) {
   ctx.clearRect(0, 0, 180, 46);
 
-  // Marco de fondo
   ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 2;
@@ -211,14 +243,26 @@ export function drawHealthbarOnCanvas(ctx: CanvasRenderingContext2D, unit: Board
   ctx.fillStyle = '#38bdf8';
   ctx.fillRect(8, 26, 164 * manaPercent, 8);
 
-  // Indicador de Estrellas
-  ctx.fillStyle = unit.starLevel === 3 ? '#facc15' : unit.starLevel === 2 ? '#e2e8f0' : '#d97706';
+  // Indicador de Estrellas (1★, 2★, 3★, 4★)
+  ctx.fillStyle = unit.starLevel >= 4 
+    ? '#38bdf8' 
+    : unit.starLevel === 3 
+      ? '#facc15' 
+      : unit.starLevel === 2 
+        ? '#e2e8f0' 
+        : '#d97706';
   ctx.font = 'bold 12px sans-serif';
   ctx.textAlign = 'left';
-  const starsText = unit.starLevel === 3 ? '★★★' : unit.starLevel === 2 ? '★★' : '★';
+  const starsText = unit.starLevel >= 4 
+    ? '★★★★' 
+    : unit.starLevel === 3 
+      ? '★★★' 
+      : unit.starLevel === 2 
+        ? '★★' 
+        : '★';
   ctx.fillText(starsText, 10, 20);
 
-  // Ítems (Puntos indicadores)
+  // Ítems
   if (unit.items && unit.items.length > 0) {
     ctx.fillStyle = '#fbbf24';
     for (let i = 0; i < unit.items.length; i++) {
