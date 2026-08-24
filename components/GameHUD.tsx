@@ -106,6 +106,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     const next = !isMuted;
     setIsMuted(next);
     soundEngine.setMuted(next);
+    if (!next) {
+      soundEngine.startSoundtrack();
+    }
   };
 
   return (
