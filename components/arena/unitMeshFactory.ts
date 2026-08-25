@@ -7,6 +7,342 @@ import { axialToWorld3D, benchIndexToWorld3D, enemyBenchIndexToWorld3D } from '@
 import { championModelManager } from '@/engine/championModelManager';
 import { ARENA_CONFIG } from './arenaConfig';
 
+// ============================================================================
+// 🎛️ PANEL DE CONTROL MODULAR POR NIVEL DE ESTRELLA (1★, 2★, 3★)
+// ============================================================================
+export const HEALTHBAR_CONFIG = {
+  // 1. 📐 Resolución interna del Canvas (Proporción 512x100)
+  canvas: {
+    width: 512,
+    height: 100,
+  },
+
+  // 2. 🌍 TAMAÑO Y ALTURA EN EL MUNDO 3D
+  world3D: {
+    baseOffsetY: 1.60, // Altura base sobre la cabeza
+    scaleX: 1.50,      // Ancho base 3D
+    scaleY: 0.293,     // Alto base 3D (Proporción exacta con 512x100)
+    // Multiplicador de tamaño de la barra según la estrella
+    scaleMultiplier: {
+      1: 1.0,   // 1★: Tamaño normal
+      2: 1.12,  // 2★: +12% más grande
+      3: 1.25,  // 3★: +25% más grande
+      4: 1.35,  // 4★: +35% más grande
+    } as Record<number, number>,
+  },
+
+  // 3. 🌟 AJUSTES INDEPENDIENTES PARA CADA ESTRELLA (1★, 2★, 3★)
+  levels: {
+    // ==================== 🥉 NIVEL 1 (BRONCE) ====================
+    1: {
+      frameImage: '/barlevels/1.png',
+      drawOnTop: true,
+      frame: { x: 0, y: 0, width: 512, height: 100 },
+      hp: {
+        x: 90,            // Tus valores calibrados
+        y: 18,
+        width: 408,
+        height: 40,
+        radius: 4,
+        allyColor: '#10b981',
+        enemyColor: '#ef4444',
+        emptyBgColor: '#090e17',
+        shieldColor: 'rgba(250, 204, 21, 0.9)',
+        segmentHp: 100,
+        dividerColor: '#000000',
+        dividerWidth: 8,
+      },
+      mana: {
+        x: 92,
+        y: 74,
+        width: 408,
+        height: 12,
+        radius: 3,
+        color: '#00d2ff',
+      },
+      items: { show: true, startX: 370, y: 52, radius: 6, spacing: 18, color: '#facc15' },
+    },
+
+    // ==================== 🥈 NIVEL 2 (PLATA) ====================
+    2: {
+      frameImage: '/barlevels/2.png',
+      drawOnTop: true,
+      frame: { x: 0, y: 0, width: 512, height: 100 },
+      hp: {
+        x: 117,            // 👈 Calibra aquí la vida para el marco de 2 estrellas
+        y: 18,
+        width: 382,
+        height: 40,
+        radius: 4,
+        allyColor: '#10b981',
+        enemyColor: '#ef4444',
+        emptyBgColor: '#090e17',
+        shieldColor: 'rgba(250, 204, 21, 0.9)',
+        segmentHp: 100,
+        dividerColor: '#000000',
+        dividerWidth: 8,
+      },
+      mana: {
+        x: 117,            // 👈 Calibra aquí el maná para el marco de 2 estrellas
+        y: 65,
+        width: 408,
+        height: 10,
+        radius: 3,
+        color: '#00d2ff',
+      },
+      items: { show: true, startX: 370, y: 52, radius: 6, spacing: 18, color: '#facc15' },
+    },
+
+    // ==================== 🥇 NIVEL 3 (ORO) ====================
+    3: {
+      frameImage: '/barlevels/3.png',
+      drawOnTop: true,
+      frame: { x: 0, y: 0, width: 412, height: 100 },
+      hp: {
+        x: 72,            // 👈 Calibra aquí la vida para el marco de 3 estrellas
+        y: 25,
+        width: 330,
+        height: 30,
+        radius: 4,
+        allyColor: '#10b981',
+        enemyColor: '#ef4444',
+        emptyBgColor: '#090e17',
+        shieldColor: 'rgba(250, 204, 21, 0.9)',
+        segmentHp: 100,
+        dividerColor: '#000000',
+        dividerWidth: 8,
+      },
+      mana: {
+        x: 152,            // 👈 Calibra aquí el maná para el marco de 3 estrellas
+        y: 65,
+        width: 408,
+        height: 10,
+        radius: 3,
+        color: '#00d2ff',
+      },
+      items: { show: true, startX: 370, y: 52, radius: 6, spacing: 18, color: '#facc15' },
+    },
+  },
+};
+
+// Helper para obtener la configuración según las estrellas del campeón
+export function getLevelConfig(starLevel: number) {
+  const star = Math.min(3, Math.max(1, starLevel)) as 1 | 2 | 3;
+  return HEALTHBAR_CONFIG.levels[star] || HEALTHBAR_CONFIG.levels[1];
+}
+
+// ============================================================================
+// 🖼️ CARGA Y CACHÉ DE LAS IMÁGENES PNG (1★, 2★, 3★)
+// ============================================================================
+const cachedFrameImages: Map<number, HTMLImageElement> = new Map();
+const activeHealthSprites: Set<THREE.Sprite> = new Set();
+
+function getOrLoadFrameImage(starLevel: number): HTMLImageElement | null {
+  if (typeof window === 'undefined') return null;
+
+  const star = Math.min(3, Math.max(1, starLevel)) as 1 | 2 | 3;
+  if (cachedFrameImages.has(star)) {
+    return cachedFrameImages.get(star)!;
+  }
+
+  const lvlConf = getLevelConfig(star);
+  const primaryPath = lvlConf.frameImage;
+
+  const fallbackCandidates = [
+    primaryPath,
+    `/barlevels/level${star}.png`,
+    `/barlevels/level_${star}.png`,
+    `/barlevels/star${star}.png`,
+    `/barlevels/bar${star}.png`,
+    `/barlevels/${star}.PNG`,
+  ];
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+
+  let candidateIdx = 0;
+  img.onerror = () => {
+    candidateIdx++;
+    if (candidateIdx < fallbackCandidates.length) {
+      img.src = fallbackCandidates[candidateIdx];
+    } else {
+      console.warn(`[Healthbar] No se pudo encontrar imagen para nivel ${star} en public/barlevels/`);
+    }
+  };
+
+  img.onload = () => {
+    activeHealthSprites.forEach((sprite) => {
+      if (sprite.userData && sprite.userData.unit) {
+        drawHealthbarOnCanvas(sprite.userData.ctx, sprite.userData.unit);
+        sprite.userData.texture.needsUpdate = true;
+      }
+    });
+  };
+
+  img.src = fallbackCandidates[0];
+  cachedFrameImages.set(star, img);
+  return img;
+}
+
+if (typeof window !== 'undefined') {
+  [1, 2, 3].forEach((lvl) => getOrLoadFrameImage(lvl));
+}
+
+// ============================================================================
+// 🎨 RENDERIZADO DEL CANVAS 2D POR ESTRELLAS
+// ============================================================================
+export function drawHealthbarOnCanvas(ctx: CanvasRenderingContext2D, unit: BoardUnit) {
+  const star = Math.min(3, Math.max(1, unit.starLevel)) as 1 | 2 | 3;
+  const lvlConf = getLevelConfig(star);
+  const { canvas: cConf } = HEALTHBAR_CONFIG;
+  const { frame: fConf, hp: hpConf, mana: manaConf, items: itemConf } = lvlConf;
+
+  const frameImg = getOrLoadFrameImage(star);
+  ctx.clearRect(0, 0, cConf.width, cConf.height);
+
+  const isImageReady = frameImg && frameImg.complete && frameImg.naturalWidth > 0;
+
+  // Si drawOnTop es false, dibuja el marco de fondo
+  if (isImageReady && !fConf.drawOnTop) {
+    ctx.drawImage(frameImg, fConf.x, fConf.y, fConf.width, fConf.height);
+  }
+
+  // --- 1. FONDO DE LA RANURA DE VIDA ---
+  ctx.fillStyle = hpConf.emptyBgColor;
+  ctx.beginPath();
+  ctx.roundRect(hpConf.x, hpConf.y, hpConf.width, hpConf.height, hpConf.radius);
+  ctx.fill();
+
+  const maxMana = unit.maxMana || 100;
+  const currentMana = unit.currentMana ?? 0;
+  const maxHp = unit.maxHealth || 600;
+  const currentHp = unit.currentHealth ?? maxHp;
+
+  // --- 2. RELLENO DE VIDA ---
+  const hpPercent = Math.max(0, Math.min(1, currentHp / Math.max(1, maxHp)));
+  if (hpPercent > 0) {
+    ctx.fillStyle = unit.team === 'ally' ? hpConf.allyColor : hpConf.enemyColor;
+    const currentHpWidth = Math.max(4, hpConf.width * hpPercent);
+    ctx.beginPath();
+    ctx.roundRect(hpConf.x, hpConf.y, currentHpWidth, hpConf.height, hpConf.radius);
+    ctx.fill();
+  }
+
+  // --- 3. RELLENO DE ESCUDO ---
+  if (unit.shield && unit.shield > 0) {
+    const shieldPercent = Math.min(1, unit.shield / Math.max(1, maxHp));
+    ctx.fillStyle = hpConf.shieldColor;
+    const shieldWidth = Math.min(hpConf.width, hpConf.width * shieldPercent);
+    ctx.beginPath();
+    ctx.roundRect(hpConf.x, hpConf.y, shieldWidth, hpConf.height, hpConf.radius);
+    ctx.fill();
+  }
+
+  // --- 4. DIVISORES CADA 100 DE VIDA ---
+  if (hpConf.segmentHp && hpConf.segmentHp > 0 && maxHp > hpConf.segmentHp) {
+    const totalSegments = Math.floor(maxHp / hpConf.segmentHp);
+    ctx.fillStyle = hpConf.dividerColor;
+
+    for (let i = 1; i <= totalSegments; i++) {
+      const segmentValue = i * hpConf.segmentHp;
+      if (segmentValue >= maxHp) break;
+
+      const tickX = hpConf.x + (segmentValue / maxHp) * hpConf.width;
+      ctx.fillRect(
+        Math.round(tickX - hpConf.dividerWidth / 2),
+        hpConf.y,
+        hpConf.dividerWidth,
+        hpConf.height
+      );
+    }
+  }
+
+  // --- 5. RELLENO DE MANÁ ---
+  if (maxMana > 0 && currentMana > 0) {
+    const manaPercent = Math.max(0, Math.min(1, currentMana / maxMana));
+    ctx.fillStyle = manaConf.color;
+    const currentManaWidth = Math.max(4, manaConf.width * manaPercent);
+    ctx.beginPath();
+    ctx.roundRect(manaConf.x, manaConf.y, currentManaWidth, manaConf.height, manaConf.radius);
+    ctx.fill();
+  }
+
+  // Si drawOnTop es true, estampa el marco PNG por encima
+  if (isImageReady && fConf.drawOnTop) {
+    ctx.drawImage(frameImg, fConf.x, fConf.y, fConf.width, fConf.height);
+  }
+
+  // --- 6. ÍTEMS ---
+  if (itemConf.show && unit.items && unit.items.length > 0) {
+    ctx.fillStyle = itemConf.color;
+    for (let i = 0; i < unit.items.length; i++) {
+      ctx.beginPath();
+      ctx.arc(itemConf.startX + i * itemConf.spacing, itemConf.y, itemConf.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// ============================================================================
+// 📦 CREACIÓN DE SPRITES THREE.JS EN ALTA FIDELIDAD
+// ============================================================================
+export function createHealthbarSprite(unit: BoardUnit): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = HEALTHBAR_CONFIG.canvas.width;
+  canvas.height = HEALTHBAR_CONFIG.canvas.height;
+  const ctx = canvas.getContext('2d')!;
+
+  drawHealthbarOnCanvas(ctx, unit);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 16;
+
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    transparent: true,
+    toneMapped: false,
+    depthTest: false,
+    depthWrite: false,
+  });
+
+  const sprite = new THREE.Sprite(material);
+  sprite.renderOrder = 9999;
+  sprite.userData = {
+    canvas,
+    ctx,
+    texture,
+    unit,
+    lastState: `${unit.currentHealth}_${unit.shield}_${unit.currentMana}_${unit.starLevel}_${unit.items?.length || 0}`,
+  };
+
+  activeHealthSprites.add(sprite);
+  return sprite;
+}
+
+export function updateUnitHealthSprite(group: THREE.Group, unit: BoardUnit) {
+  const hpSprite = group.getObjectByName('healthbar_sprite') as THREE.Sprite;
+  if (!hpSprite || !hpSprite.userData) return;
+
+  const { ctx, canvas, texture } = hpSprite.userData;
+  if (!ctx || !canvas || !texture) return;
+
+  hpSprite.userData.unit = unit;
+
+  const currentState = `${unit.currentHealth}_${unit.shield}_${unit.currentMana}_${unit.starLevel}_${unit.items?.length || 0}`;
+  if (hpSprite.userData.lastState === currentState) return;
+  hpSprite.userData.lastState = currentState;
+
+  drawHealthbarOnCanvas(ctx, unit);
+  texture.needsUpdate = true;
+}
+
+// ============================================================================
+// 🏆 FACTORÍA DE UNIDADES 3D
+// ============================================================================
 export function getChampionScale(starLevel: number): number {
   return ARENA_CONFIG?.champions?.starScales?.[starLevel] ?? 
     (starLevel >= 4 ? 2.20 : starLevel === 3 ? 1.70 : starLevel === 2 ? 1.25 : 0.85);
@@ -24,7 +360,6 @@ export function createUnitGroup(
     lastRenderedStarLevel: unit.starLevel 
   };
 
-  // Posición inicial 3D
   if (unit.benchIndex !== null) {
     const pos =
       unit.team === 'enemy'
@@ -40,14 +375,9 @@ export function createUnitGroup(
   const isAlly = unit.team === 'ally';
   const unitColor = new THREE.Color(base ? base.color : isAlly ? 0x3b82f6 : 0xef4444);
 
-  // 1. Pedestal de suelo ajustado a la escala de la estrella
+  // Pedestal del suelo
   const pedRadius = (ARENA_CONFIG?.champions?.pedestalRadius ?? 0.48) * starScale;
-  const pedestalGeo = new THREE.CylinderGeometry(
-    pedRadius,
-    pedRadius + 0.06,
-    0.06,
-    24
-  );
+  const pedestalGeo = new THREE.CylinderGeometry(pedRadius, pedRadius + 0.06, 0.06, 24);
   const pedestalMat = new THREE.MeshStandardMaterial({
     color: isAlly ? 0x0f172a : 0x1e1b4b,
     roughness: 0.7,
@@ -59,11 +389,7 @@ export function createUnitGroup(
   pedestal.receiveShadow = true;
   group.add(pedestal);
 
-  const teamRingGeo = new THREE.RingGeometry(
-    pedRadius + 0.01,
-    pedRadius + 0.07,
-    32
-  );
+  const teamRingGeo = new THREE.RingGeometry(pedRadius + 0.01, pedRadius + 0.07, 32);
   const teamRingMat = new THREE.MeshBasicMaterial({
     color: isAlly ? 0x00e5ff : 0xf43f5e,
     side: THREE.DoubleSide,
@@ -75,7 +401,7 @@ export function createUnitGroup(
   teamRing.position.y = 0.065;
   group.add(teamRing);
 
-  // 2. Avatar Placeholder procedural (mientras descarga el GLB)
+  // Avatar Placeholder
   const fallbackAvatar = new THREE.Group();
   fallbackAvatar.name = 'fallback_avatar';
 
@@ -114,7 +440,7 @@ export function createUnitGroup(
   fallbackAvatar.add(headMesh);
   group.add(fallbackAvatar);
 
-  // 3. Carga e instanciación del modelo 3D GLTF
+  // Carga del modelo 3D GLTF
   championModelManager
     .loadModel(unit.championId)
     .then((template) => {
@@ -141,7 +467,7 @@ export function createUnitGroup(
       console.warn(`Could not attach 3D model for ${unit.championId}:`, err);
     });
 
-  // 4. Auras 3★ (Dorada) y 4★ (Prismática)
+  // Auras 3★ y 4★
   if (unit.starLevel === 3) {
     const auraGeo = new THREE.RingGeometry(pedRadius + 0.08, pedRadius + 0.22, 32);
     const auraMat = new THREE.MeshBasicMaterial({
@@ -170,107 +496,21 @@ export function createUnitGroup(
     group.add(aura);
   }
 
-  // 5. Barra de vida proporcionalmente ubicada
+  // ✨ Creación del Sprite 3D con Escala Proporcional y Estable
   const hpSprite = createHealthbarSprite(unit);
   hpSprite.name = 'healthbar_sprite';
-  const baseHpY = ARENA_CONFIG?.champions?.healthbarBaseOffsetY ?? 1.55;
+  const baseHpY = HEALTHBAR_CONFIG.world3D.baseOffsetY;
+  const starMult = HEALTHBAR_CONFIG.world3D.scaleMultiplier[unit.starLevel] || 1.0;
+
   hpSprite.position.y = baseHpY * starScale;
-  hpSprite.scale.set(1.3 * Math.min(1.2, starScale), 0.33 * Math.min(1.2, starScale), 1);
+  hpSprite.scale.set(
+    HEALTHBAR_CONFIG.world3D.scaleX * starMult,
+    HEALTHBAR_CONFIG.world3D.scaleY * starMult,
+    1
+  );
   group.add(hpSprite);
 
   return group;
-}
-
-export function createHealthbarSprite(unit: BoardUnit): THREE.Sprite {
-  const canvas = document.createElement('canvas');
-  canvas.width = 180;
-  canvas.height = 46;
-  const ctx = canvas.getContext('2d')!;
-
-  drawHealthbarOnCanvas(ctx, unit);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-  const sprite = new THREE.Sprite(material);
-  sprite.userData = {
-    canvas,
-    ctx,
-    texture,
-    lastState: `${unit.currentHealth}_${unit.shield}_${unit.currentMana}_${unit.starLevel}_${unit.items?.length || 0}`,
-  };
-  return sprite;
-}
-
-export function updateUnitHealthSprite(group: THREE.Group, unit: BoardUnit) {
-  const hpSprite = group.getObjectByName('healthbar_sprite') as THREE.Sprite;
-  if (!hpSprite || !hpSprite.userData) return;
-
-  const { ctx, canvas, texture } = hpSprite.userData;
-  if (!ctx || !canvas || !texture) return;
-
-  const currentState = `${unit.currentHealth}_${unit.shield}_${unit.currentMana}_${unit.starLevel}_${unit.items?.length || 0}`;
-  if (hpSprite.userData.lastState === currentState) return;
-  hpSprite.userData.lastState = currentState;
-
-  drawHealthbarOnCanvas(ctx, unit);
-  texture.needsUpdate = true;
-}
-
-export function drawHealthbarOnCanvas(ctx: CanvasRenderingContext2D, unit: BoardUnit) {
-  ctx.clearRect(0, 0, 180, 46);
-
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 2;
-  ctx.roundRect(4, 4, 172, 38, 4);
-  ctx.fill();
-  ctx.stroke();
-
-  // Barra de Vida
-  const hpPercent = Math.max(0, Math.min(1, unit.currentHealth / Math.max(1, unit.maxHealth)));
-  ctx.fillStyle = unit.team === 'ally' ? '#22c55e' : '#ef4444';
-  ctx.fillRect(8, 8, 164 * hpPercent, 14);
-
-  // Escudo
-  if (unit.shield > 0) {
-    const shieldPercent = Math.min(1, unit.shield / Math.max(1, unit.maxHealth));
-    ctx.fillStyle = 'rgba(250, 204, 21, 0.7)';
-    ctx.fillRect(8, 8, 164 * shieldPercent, 14);
-  }
-
-  // Barra de Maná
-  const manaPercent = Math.max(0, Math.min(1, unit.currentMana / Math.max(1, unit.maxMana)));
-  ctx.fillStyle = '#38bdf8';
-  ctx.fillRect(8, 26, 164 * manaPercent, 8);
-
-  // Indicador de Estrellas (1★, 2★, 3★, 4★)
-  ctx.fillStyle = unit.starLevel >= 4 
-    ? '#38bdf8' 
-    : unit.starLevel === 3 
-      ? '#facc15' 
-      : unit.starLevel === 2 
-        ? '#e2e8f0' 
-        : '#d97706';
-  ctx.font = 'bold 12px sans-serif';
-  ctx.textAlign = 'left';
-  const starsText = unit.starLevel >= 4 
-    ? '★★★★' 
-    : unit.starLevel === 3 
-      ? '★★★' 
-      : unit.starLevel === 2 
-        ? '★★' 
-        : '★';
-  ctx.fillText(starsText, 10, 20);
-
-  // Ítems
-  if (unit.items && unit.items.length > 0) {
-    ctx.fillStyle = '#fbbf24';
-    for (let i = 0; i < unit.items.length; i++) {
-      ctx.beginPath();
-      ctx.arc(140 + i * 12, 15, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
 }
 
 export function createDamageSprite(amount: number, type: string, isCrit: boolean): THREE.Sprite {
