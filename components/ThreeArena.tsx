@@ -684,18 +684,22 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   ]);
 
   // --- 3. Instanciación de Minileyendas (Estrategas) ---
-  useEffect(() => {
+   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    if (playerLegendEntityRef.current)
+    // Estratega del Jugador
+    if (playerLegendEntityRef.current) {
       scene.remove(playerLegendEntityRef.current.group);
+    }
     const playerStartPos = new THREE.Vector3(-6.2, 0.05, 5.4);
-    const { group: playerGroup, legendData: playerLegendData } =
+    const { group: playerGroup, legendData: playerLegendData, nameplateSprite: playerHpSprite } =
       LittleLegendManager.createLittleLegendGroup(
         playerLegendId,
         true,
         playerName,
+        100, // Vida inicial del jugador
+        1,   // Nivel inicial
         (legend3d) => {
           if (legend3d.mixer)
             unitMixersRef.current.set("player_legend_mixer", legend3d.mixer);
@@ -720,16 +724,24 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       speed: 9.0,
       dustTimer: 0,
       model3D: null,
+      nameplateSprite: playerHpSprite,
+      currentHealth: 100,
+      maxHealth: 100,
+      level: 1,
     };
 
-    if (opponentLegendEntityRef.current)
+    // Estratega del Rival
+    if (opponentLegendEntityRef.current) {
       scene.remove(opponentLegendEntityRef.current.group);
+    }
     const oppStartPos = new THREE.Vector3(6.2, 0.05, -5.4);
-    const { group: oppGroup, legendData: oppLegendData } =
+    const { group: oppGroup, legendData: oppLegendData, nameplateSprite: oppHpSprite } =
       LittleLegendManager.createLittleLegendGroup(
         opponentLegendId,
         false,
         opponentName,
+        100, // Vida inicial del rival
+        1,
         (legend3d) => {
           if (legend3d.mixer)
             unitMixersRef.current.set("opp_legend_mixer", legend3d.mixer);
@@ -754,6 +766,10 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       speed: 9.0,
       dustTimer: 0,
       model3D: null,
+      nameplateSprite: oppHpSprite,
+      currentHealth: 100,
+      maxHealth: 100,
+      level: 1,
     };
   }, [playerLegendId, opponentLegendId, playerName, opponentName]);
 

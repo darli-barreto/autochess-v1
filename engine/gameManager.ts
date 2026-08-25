@@ -100,7 +100,7 @@ export class GameManager {
     // Human player (Sandbox Board Testing Mode)
     const human: PlayerState = {
       id: this.humanPlayerId,
-      name: 'Estratega (Modo Tablero)',
+      name: 'Fyzen',
       isHuman: true,
       avatar: 'https://picsum.photos/seed/player1/120/120',
       littleLegendId: 'prestige_chibi_spirit_blossom_ahri',
