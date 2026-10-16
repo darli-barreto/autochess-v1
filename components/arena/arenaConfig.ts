@@ -46,7 +46,7 @@ export const ARENA_CONFIG = {
 
   // Colores de la Escena y Niebla
   scene: {
-    backgroundImage: "/bgtft1.jpg",
+
     enableFog: false,
     fogColor: 0,
     fogNear: 45,
@@ -141,7 +141,7 @@ export const ARENA_CONFIG = {
   // Cuadrícula de Hexágonos
   hexGrid: {
     radius: 0.7,
-    height: 0.1,
+    height: 0.015,
     spacingX: 2.2,
     spacingZ: 1.13,
     offsetX: 0.6,

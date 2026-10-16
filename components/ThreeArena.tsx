@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import {
   BoardUnit,
@@ -11,11 +11,7 @@ import {
   VisualEffectEvent,
 } from "@/types/game";
 import {
-  BOARD_ROWS,
-  BOARD_COLS,
   axialToWorld3D,
-  benchIndexToWorld3D,
-  enemyBenchIndexToWorld3D,
   rowColToAxial,
 } from "@/engine/hexMath";
 import { CombatEngine } from "@/engine/combatEngine";
@@ -26,16 +22,17 @@ import {
 
 // Módulos refactorizados
 import { ARENA_CONFIG } from "./arena/arenaConfig";
-import {
-  setupArenaLights,
-  setupArenaEnvironment,
-  FlameEntity,
-} from "./arena/arenaEnvironment";
+import { createDiamondCosmos } from "./arena/diamondCosmos";
+import { setupArenaLights, applyArenaAppearance } from "./arena/arenaEnvironment";
 import {
   createBoardHexes,
   createAllyBenchHexes,
   createEnemyBenchHexes,
   createDragHighlightMesh,
+  setPlacementGridVisible,
+  findPlacementTarget,
+  showPlacementTarget,
+  type PlacementTarget,
 } from "./arena/arenaGrids";
 import {
   createUnitGroup,
@@ -44,6 +41,8 @@ import {
   createProjectileMesh,
   createVfxMesh,
 } from "./arena/unitMeshFactory";
+import { WOW_ARENAS, WowArena, loadWowArena, disposeArena } from "./arena/wowArenas";
+import { getArenaBenchPosition, getArenaCamera, getArenaTacticianPosition } from "./arena/wowArenaLayout";
 import { ArenaDragOverlay } from "./arena/ArenaDragOverlay";
 
 interface ThreeArenaProps {
@@ -109,6 +108,13 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   isInspectingChampion = false,
   setIsInspectingChampion,
 }) => {
+  const [arenaRank, setArenaRank] = useState<WowArena>('Diamante');
+  const activeArenaRankRef = useRef<WowArena>('Diamante');
+  const benchIndexToWorld3D = useCallback((index: number) => getArenaBenchPosition(activeArenaRankRef.current, index), []);
+  const enemyBenchIndexToWorld3D = useCallback((index: number) => getArenaBenchPosition(activeArenaRankRef.current, index, true), []);
+  const [arenaStatus, setArenaStatus] = useState('Cargando arena…');
+  const [arenaRetry, setArenaRetry] = useState(0);
+  const arenaModelRef = useRef<THREE.Group | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -155,12 +161,12 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     { mesh: THREE.Mesh; vfx: VisualEffectEvent; birthTime: number }[]
   >([]);
   const debugLinesGroupRef = useRef<THREE.Group | null>(null);
-  const flamesRef = useRef<FlameEntity[]>([]);
 
   // Estado de Arrastre e Interacción
   const [draggedUnit, setDraggedUnit] = useState<BoardUnit | null>(null);
   const draggedUnitRef = useRef<BoardUnit | null>(null);
   const dragPosRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 1.2, 0));
+  const placementTargetRef = useRef<PlacementTarget | null>(null);
   const dragHighlightMeshRef = useRef<THREE.Group | null>(null);
 
   const [hoveredHex, setHoveredHex] = useState<{
@@ -195,14 +201,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     // Escena y Cámara
     const scene = new THREE.Scene();
 
-    // 🖼️ Cargar imagen de fondo desde la carpeta public/
-    if (ARENA_CONFIG.scene.backgroundImage) {
-      const textureLoader = new THREE.TextureLoader();
-      textureLoader.load(ARENA_CONFIG.scene.backgroundImage, (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        scene.background = texture;
-      });
-    }
+    scene.background = new THREE.Color(0x101820);
 
     // Niebla opcional
     if (ARENA_CONFIG.scene.enableFog) {
@@ -237,13 +236,15 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.35;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // Construcción del Mundo mediante Módulos
     setupArenaLights(scene);
-    flamesRef.current = setupArenaEnvironment(scene);
+    const cosmos = createDiamondCosmos(scene);
+    applyArenaAppearance(scene, renderer, activeArenaRankRef.current);
+
     hexMeshesRef.current = createBoardHexes(scene);
     benchHexMeshesRef.current = createAllyBenchHexes(scene);
     enemyBenchHexMeshesRef.current = createEnemyBenchHexes(scene);
@@ -264,6 +265,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       const delta = Math.min(0.1, (currentTime - lastTime) / 1000);
       const elapsed = (currentTime - startTime) / 1000;
       lastTime = currentTime;
+      cosmos.update(elapsed, activeArenaRankRef.current === "Diamante", renderer.getPixelRatio());
 
       // Métricas de Rendimiento (FPS)
       frameCountRef.current++;
@@ -570,8 +572,69 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       if (renderer.domElement && renderer.domElement.parentNode) {
         renderer.domElement.parentNode.removeChild(renderer.domElement);
       }
+      cosmos.dispose();
       renderer.dispose();
     };
+  }, [benchIndexToWorld3D, enemyBenchIndexToWorld3D]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    let cancelled = false;
+    loadWowArena(arenaRank).then(model => {
+      if (cancelled) {
+        disposeArena(model);
+        return;
+      }
+      if (arenaModelRef.current) disposeArena(arenaModelRef.current);
+      arenaModelRef.current = model;
+      scene.add(model);
+      activeArenaRankRef.current = arenaRank;
+      if (rendererRef.current) applyArenaAppearance(scene, rendererRef.current, arenaRank);
+      // Commit scenery, interaction targets and camera together after loading.
+      const retiredBenchGeometries = new Set<THREE.BufferGeometry>();
+      const benchGeometry = new THREE.BoxGeometry(1.52, 0.015, 1.3);
+      for (const [enemy, meshes] of [[false, benchHexMeshesRef.current], [true, enemyBenchHexMeshesRef.current]] as const) {
+        meshes.forEach((mesh, index) => {
+          const pos = getArenaBenchPosition(arenaRank, index, enemy);
+          mesh.position.set(pos.x, pos.y, pos.z);
+          retiredBenchGeometries.add(mesh.geometry);
+          mesh.geometry = benchGeometry;
+          const material = mesh.material as THREE.MeshStandardMaterial;
+          material.transparent = true;
+          material.opacity = 0;
+          material.depthWrite = false;
+          material.colorWrite = false;
+        });
+      }
+      retiredBenchGeometries.forEach(geometry => geometry.dispose());
+      for (const [enemy, entity] of [[false, playerLegendEntityRef.current], [true, opponentLegendEntityRef.current]] as const) {
+        if (!entity) continue;
+        const pos = getArenaTacticianPosition(arenaRank, enemy);
+        entity.currentPos.copy(pos);
+        entity.group.position.copy(pos);
+        entity.targetPos = null;
+      }
+      const view = getArenaCamera(arenaRank);
+      targetCameraPosRef.current.copy(view.defaultPosition);
+      targetLookAtRef.current.copy(view.defaultLookAt);
+      zoomDistanceRef.current = ARENA_CONFIG.camera.zoom.default;
+      inspectingUnitRef.current = null;
+      isFollowingTacticianLocalRef.current = false;
+      setIsFollowingTactician?.(false);
+      setIsInspectingChampion?.(false);
+      setArenaStatus('');
+    }).catch(error => {
+      if (cancelled) return;
+      console.error('No se pudo cargar la arena', error);
+      setArenaStatus('No se pudo cargar la arena. Inténtalo de nuevo.');
+    });
+    return () => { cancelled = true; };
+  }, [arenaRank, arenaRetry, setIsFollowingTactician, setIsInspectingChampion]);
+
+  useEffect(() => () => {
+    if (arenaModelRef.current) disposeArena(arenaModelRef.current);
+    arenaModelRef.current = null;
   }, []);
 
   // --- 2. Sincronización de Unidades con el Estado del Juego ---
@@ -675,6 +738,8 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       }
     }
   }, [
+    benchIndexToWorld3D,
+    enemyBenchIndexToWorld3D,
     boardUnits,
     benchUnits,
     enemyBenchUnits,
@@ -692,7 +757,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     if (playerLegendEntityRef.current) {
       scene.remove(playerLegendEntityRef.current.group);
     }
-    const playerStartPos = new THREE.Vector3(-6.2, 0.05, 5.4);
+    const playerStartPos = getArenaTacticianPosition(activeArenaRankRef.current);
     const { group: playerGroup, legendData: playerLegendData, nameplateSprite: playerHpSprite } =
       LittleLegendManager.createLittleLegendGroup(
         playerLegendId,
@@ -734,7 +799,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     if (opponentLegendEntityRef.current) {
       scene.remove(opponentLegendEntityRef.current.group);
     }
-    const oppStartPos = new THREE.Vector3(6.2, 0.05, -5.4);
+    const oppStartPos = getArenaTacticianPosition(activeArenaRankRef.current, true);
     const { group: oppGroup, legendData: oppLegendData, nameplateSprite: oppHpSprite } =
       LittleLegendManager.createLittleLegendGroup(
         opponentLegendId,
@@ -774,7 +839,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
   }, [playerLegendId, opponentLegendId, playerName, opponentName]);
 
   // Actualizar Posición y Objetivo de la Cámara
-  const updateCameraTarget = () => {
+  const updateCameraTarget = useCallback(() => {
     const ratio = zoomDistanceRef.current / ARENA_CONFIG.camera.zoom.default;
 
     if (inspectingUnitRef.current) {
@@ -808,7 +873,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         pPos.z + tact.camOffsetZ * ratio,
       );
     } else {
-      const def = ARENA_CONFIG.camera;
+      const def = getArenaCamera(activeArenaRankRef.current);
       targetLookAtRef.current.copy(def.defaultLookAt);
       targetCameraPosRef.current.set(
         def.defaultPosition.x,
@@ -816,7 +881,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         def.defaultPosition.z * ratio,
       );
     }
-  };
+  }, [benchIndexToWorld3D, enemyBenchIndexToWorld3D]);
 
   // Conexión de Refs de Emotes y Zoom
   useEffect(() => {
@@ -850,7 +915,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         updateCameraTarget();
       };
     }
-  }, [onZoomInRef]);
+  }, [onZoomInRef, updateCameraTarget]);
 
   useEffect(() => {
     if (onZoomOutRef) {
@@ -862,14 +927,15 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         updateCameraTarget();
       };
     }
-  }, [onZoomOutRef]);
+  }, [onZoomOutRef, updateCameraTarget]);
 
   useEffect(() => {
     if (onResetCameraRef) {
       onResetCameraRef.current = () => {
         zoomDistanceRef.current = ARENA_CONFIG.camera.zoom.default;
-        targetLookAtRef.current.copy(ARENA_CONFIG.camera.defaultLookAt);
-        targetCameraPosRef.current.copy(ARENA_CONFIG.camera.defaultPosition);
+        const view = getArenaCamera(activeArenaRankRef.current);
+        targetLookAtRef.current.copy(view.defaultLookAt);
+        targetCameraPosRef.current.copy(view.defaultPosition);
         inspectingUnitRef.current = null;
         isFollowingTacticianLocalRef.current = false;
         if (setIsInspectingChampion) setIsInspectingChampion(false);
@@ -894,6 +960,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     }
   }, [
     onToggleFollowTacticianRef,
+    updateCameraTarget,
     setIsFollowingTactician,
     setIsInspectingChampion,
   ]);
@@ -908,7 +975,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         updateCameraTarget();
       };
     }
-  }, [onInspectUnitRef, setIsInspectingChampion, setIsFollowingTactician]);
+  }, [onInspectUnitRef, setIsInspectingChampion, setIsFollowingTactician, updateCameraTarget]);
 
   // Listener nativo del scroll del ratón
   useEffect(() => {
@@ -932,7 +999,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     return () => {
       el.removeEventListener("wheel", onWheel);
     };
-  }, []);
+  }, [updateCameraTarget]);
 
   // --- 4. Eventos de Combate (Daño, Proyectiles, VFX) ---
   useEffect(() => {
@@ -1045,6 +1112,7 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
         }
 
         if (!isCombatPhase && unit.team !== "enemy") {
+          placementTargetRef.current = null;
           setDraggedUnit(unit);
           draggedUnitRef.current = unit;
 
@@ -1115,252 +1183,105 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
     }
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!rendererRef.current || !cameraRef.current) return;
-    const rect = rendererRef.current.domElement.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  const clearPlacementPreview = useCallback(() => {
+    placementTargetRef.current = null;
+    setHoveredHex(null);
+    setHoveredBenchIdx(null);
+    setHoveredTargetUnit(null);
+    setPlacementGridVisible(hexMeshesRef.current, benchHexMeshesRef.current, false);
+    if (dragHighlightMeshRef.current) showPlacementTarget(dragHighlightMeshRef.current, null);
+  }, []);
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current);
+  const cancelPlacement = useCallback(() => {
+    draggedUnitRef.current = null;
+    setDraggedUnit(null);
+    setIsOverSellZone(false);
+    clearPlacementPreview();
+  }, [clearPlacementPreview]);
 
-    const isOverBottom = e.clientY > window.innerHeight - 150;
-    setIsOverSellZone(isOverBottom && draggedUnitRef.current !== null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') cancelPlacement(); };
+    window.addEventListener('blur', cancelPlacement);
+    window.addEventListener('dragend', cancelPlacement);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('blur', cancelPlacement);
+      window.removeEventListener('dragend', cancelPlacement);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [cancelPlacement]);
 
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hitPoint = new THREE.Vector3();
-    const hasGroundHit = raycaster.ray.intersectPlane(groundPlane, hitPoint);
-
-    if (draggedUnitRef.current && hasGroundHit) {
-      dragPosRef.current.set(hitPoint.x, 1.25, hitPoint.z);
+  useEffect(() => {
+    if (isCombatPhase) {
+      placementTargetRef.current = null;
+      setPlacementGridVisible(hexMeshesRef.current, benchHexMeshesRef.current, false);
+      if (dragHighlightMeshRef.current) showPlacementTarget(dragHighlightMeshRef.current, null);
     }
+  }, [isCombatPhase]);
 
-    if (isOverBottom && draggedUnitRef.current) {
-      setHoveredHex(null);
-      setHoveredBenchIdx(null);
-      setHoveredTargetUnit(null);
-      if (dragHighlightMeshRef.current)
-        dragHighlightMeshRef.current.visible = false;
+  const previewPlacement = (clientX: number, clientY: number) => {
+    if (!rendererRef.current || !cameraRef.current || isCombatPhase) {
+      clearPlacementPreview();
       return;
     }
-
-    if (hasGroundHit) {
-      let bestDist = Infinity;
-      let bestHex: {
-        row: number;
-        col: number;
-        isAlly: boolean;
-        pos: { x: number; y: number; z: number };
-      } | null = null;
-      let bestBench: {
-        benchIdx: number;
-        pos: { x: number; y: number; z: number };
-      } | null = null;
-
-      for (let r = 0; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-          const axial = rowColToAxial(r, c);
-          const pos = axialToWorld3D(axial, 0.12);
-          const dist = Math.hypot(hitPoint.x - pos.x, hitPoint.z - pos.z);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestHex = { row: r, col: c, isAlly: r >= 4, pos };
-            bestBench = null;
-          }
-        }
-      }
-
-      for (let b = 0; b < 9; b++) {
-        const bPos = benchIndexToWorld3D(b);
-        const dist = Math.hypot(hitPoint.x - bPos.x, hitPoint.z - bPos.z);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestBench = { benchIdx: b, pos: bPos };
-          bestHex = null;
-        }
-      }
-
-      const hlConf = ARENA_CONFIG.dragHighlight;
-
-      if (bestDist < 1.4) {
-        if (bestHex) {
-          setHoveredHex({ row: bestHex.row, col: bestHex.col });
-          setHoveredBenchIdx(null);
-
-          const axial = rowColToAxial(bestHex.row, bestHex.col);
-          const existingUnit =
-            boardUnits.find(
-              (u) =>
-                u.gridPosition &&
-                u.gridPosition.q === axial.q &&
-                u.gridPosition.r === axial.r,
-            ) || null;
-          setHoveredTargetUnit(existingUnit);
-
-          if (dragHighlightMeshRef.current) {
-            // 🚫 Si hay una unidad en la casilla (Swap), NO mostramos el aro resaltador
-            if (existingUnit) {
-              dragHighlightMeshRef.current.visible = false;
-            } else {
-              // Solo se muestra el aro en casillas vacías
-              dragHighlightMeshRef.current.position.set(
-  bestHex.pos.x + (hlConf.offsetX || 0),
-  hlConf.posY ?? 0.12,
-  bestHex.pos.z + (hlConf.offsetZ || 0)
-);
-              dragHighlightMeshRef.current.visible = true;
-
-              const color = bestHex.isAlly
-                ? hlConf.colorAlly
-                : hlConf.colorEnemyForbidden;
-
-              const ringMesh = dragHighlightMeshRef.current.getObjectByName(
-                "hl_ring",
-              ) as THREE.Mesh;
-              const innerMesh = dragHighlightMeshRef.current.getObjectByName(
-                "hl_inner",
-              ) as THREE.Mesh;
-              if (ringMesh && ringMesh.material)
-                (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(
-                  color,
-                );
-              if (innerMesh && innerMesh.material)
-                (innerMesh.material as THREE.MeshBasicMaterial).color.setHex(
-                  color,
-                );
-            }
-          }
-        } else if (bestBench) {
-          setHoveredBenchIdx(bestBench.benchIdx);
-          setHoveredHex(null);
-
-          const existingBenchUnit = benchUnits[bestBench.benchIdx] || null;
-          setHoveredTargetUnit(existingBenchUnit);
-
-          // ✅ ACTIVAR NUEVAMENTE EL SOMBREADO EN LA BANCA:
-          if (dragHighlightMeshRef.current) {
-            dragHighlightMeshRef.current.position.set(
-              bestBench.pos.x,
-              0.1,
-              bestBench.pos.z,
-            );
-            dragHighlightMeshRef.current.visible = true;
-
-            // Si hay una ficha usa colorSwap, si está vacío usa colorBench
-            const color = existingBenchUnit
-              ? hlConf.colorSwap
-              : hlConf.colorBench;
-
-            const ringMesh = dragHighlightMeshRef.current.getObjectByName(
-              "hl_ring",
-            ) as THREE.Mesh;
-            const innerMesh = dragHighlightMeshRef.current.getObjectByName(
-              "hl_inner",
-            ) as THREE.Mesh;
-            if (ringMesh && ringMesh.material)
-              (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(
-                color,
-              );
-            if (innerMesh && innerMesh.material)
-              (innerMesh.material as THREE.MeshBasicMaterial).color.setHex(
-                color,
-              );
-          }
-        }
-      }
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (draggedUnitRef.current) {
-      const activeUnit = draggedUnitRef.current;
-
-      if (isOverSellZone && onSellUnit) {
-        onSellUnit(activeUnit);
-      } else if (hoveredHex && hoveredHex.row >= 4) {
-        onMoveUnit(activeUnit.instanceId, hoveredHex.row, hoveredHex.col);
-      } else if (hoveredBenchIdx !== null) {
-        onMoveToBench(activeUnit.instanceId, hoveredBenchIdx);
-      }
-
-      if (e.currentTarget && e.currentTarget.releasePointerCapture) {
-        try {
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        } catch {}
-      }
-
-      setDraggedUnit(null);
-      draggedUnitRef.current = null;
-      setHoveredTargetUnit(null);
-      setIsOverSellZone(false);
-
-      if (dragHighlightMeshRef.current)
-        dragHighlightMeshRef.current.visible = false;
-    }
-  };
-
-  // Drag & Drop HTML5 desde tarjetas de compra/tienda
-  const handleHtmlDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (!rendererRef.current || !cameraRef.current) return;
     const rect = rendererRef.current.domElement.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
+    const point = new THREE.Vector3();
     const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current);
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const hitPoint = new THREE.Vector3();
-    if (raycaster.ray.intersectPlane(groundPlane, hitPoint)) {
-      let bestDist = Infinity;
-      let bestHex: {
-        row: number;
-        col: number;
-        pos: { x: number; y: number; z: number };
-      } | null = null;
-      for (let r = 4; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-          const axial = rowColToAxial(r, c);
-          const pos = axialToWorld3D(axial, 0.12);
-          const dist = Math.hypot(hitPoint.x - pos.x, hitPoint.z - pos.z);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestHex = { row: r, col: c, pos };
-          }
-        }
-      }
-      if (bestHex && bestDist < 1.6) {
-        setHoveredHex({ row: bestHex.row, col: bestHex.col });
-        if (dragHighlightMeshRef.current) {
-          dragHighlightMeshRef.current.position.set(
-            bestHex.pos.x,
-            0.12,
-            bestHex.pos.z,
-          );
-          dragHighlightMeshRef.current.visible = true;
-          const ringMesh = dragHighlightMeshRef.current.getObjectByName(
-            "hl_ring",
-          ) as THREE.Mesh;
-          if (ringMesh && ringMesh.material) {
-            (ringMesh.material as THREE.MeshBasicMaterial).color.setHex(
-              ARENA_CONFIG.dragHighlight.colorAlly,
-            );
-          }
-        }
-      }
+    raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1), cameraRef.current);
+    if (!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), point)) {
+      clearPlacementPreview();
+      return;
     }
+    if (draggedUnitRef.current) dragPosRef.current.set(point.x, 1.25, point.z);
+    const overShop = clientY > window.innerHeight - 150;
+    setIsOverSellZone(overShop && draggedUnitRef.current !== null);
+    const target = overShop ? null : findPlacementTarget(point, benchIndexToWorld3D);
+    if (!target) { clearPlacementPreview(); return; }
+    placementTargetRef.current = target;
+    setPlacementGridVisible(hexMeshesRef.current, benchHexMeshesRef.current, true);
+    setHoveredHex(target.kind === 'board' ? { row: target.row, col: target.col } : null);
+    setHoveredBenchIdx(target.kind === 'bench' ? target.index : null);
+    if (target.kind === 'bench') setHoveredTargetUnit(benchUnits[target.index] ?? null);
+    else {
+      const axial = rowColToAxial(target.row, target.col);
+      setHoveredTargetUnit(boardUnits.find(unit => unit.gridPosition?.q === axial.q && unit.gridPosition.r === axial.r) ?? null);
+    }
+    if (dragHighlightMeshRef.current) showPlacementTarget(dragHighlightMeshRef.current, target);
   };
 
-  const handleHtmlDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const unitId = e.dataTransfer.getData("text/plain");
-    if (unitId && hoveredHex && hoveredHex.row >= 4) {
-      onMoveUnit(unitId, hoveredHex.row, hoveredHex.col);
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggedUnitRef.current) return;
+    previewPlacement(event.clientX, event.clientY);
+  };
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const unit = draggedUnitRef.current;
+    const target = placementTargetRef.current;
+    if (unit && !isCombatPhase) {
+      if (isOverSellZone && onSellUnit) onSellUnit(unit);
+      else if (target?.kind === 'board') onMoveUnit(unit.instanceId, target.row, target.col);
+      else if (target?.kind === 'bench') onMoveToBench(unit.instanceId, target.index);
     }
-    setHoveredHex(null);
-    if (dragHighlightMeshRef.current)
-      dragHighlightMeshRef.current.visible = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    cancelPlacement();
+  };
+
+  const handleHtmlDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (isCombatPhase || !event.dataTransfer.types.includes('text/plain')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    previewPlacement(event.clientX, event.clientY);
+  };
+
+  const handleHtmlDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const unitId = event.dataTransfer.getData('text/plain');
+    const target = placementTargetRef.current;
+    if (unitId && !isCombatPhase) {
+      if (target?.kind === 'board') onMoveUnit(unitId, target.row, target.col);
+      else if (target?.kind === 'bench') onMoveToBench(unitId, target.index);
+    }
+    cancelPlacement();
   };
 
   return (
@@ -1374,10 +1295,35 @@ export const ThreeArena: React.FC<ThreeArenaProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerCancel={cancelPlacement}
+      onPointerLeave={clearPlacementPreview}
+      onDragLeave={event => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) clearPlacementPreview();
+      }}
       onDragOver={handleHtmlDragOver}
       onDrop={handleHtmlDrop}
     >
+      <div
+        className="absolute bottom-44 left-4 z-10 rounded-lg border border-amber-300/30 bg-slate-950/90 p-3 text-xs text-slate-100 shadow-lg"
+        onPointerDown={event => event.stopPropagation()}
+        onPointerMove={event => event.stopPropagation()}
+        onPointerUp={event => event.stopPropagation()}
+        onWheel={event => event.stopPropagation()}
+      >
+        <label htmlFor="wow-arena" className="mb-1 block font-semibold text-amber-200">Arena de WoW</label>
+        <select id="wow-arena" value={arenaRank} className="rounded border border-slate-600 bg-slate-900 px-2 py-1"
+          onChange={event => {
+            setArenaStatus('Cargando arena…');
+            setArenaRank(event.target.value as WowArena);
+          }}>
+          {WOW_ARENAS.map(rank => <option key={rank} value={rank}>{rank === 'GranMaestro' ? 'Gran Maestro' : rank}</option>)}
+        </select>
+        {arenaStatus && <p role="status" className="mt-2 max-w-52">{arenaStatus}</p>}
+        {arenaStatus.startsWith('No se pudo') && <button className="mt-2 underline" onClick={() => {
+          setArenaStatus('Cargando arena…');
+          setArenaRetry(value => value + 1);
+        }}>Reintentar</button>}
+      </div>
       {/* Banner de Arrastre Flotante */}
       <ArenaDragOverlay
         draggedUnit={draggedUnit}

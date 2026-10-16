@@ -135,7 +135,7 @@ export const HUDHeader: React.FC<HUDHeaderProps> = ({
       ) : (
         <div className="bg-slate-800/80 px-4 py-1 rounded border border-white/5 flex items-center gap-2">
           <div className="w-2.5 h-2.5 bg-blue-400 rounded-sm shadow-[0_0_8px_rgba(96,165,250,0.6)]"></div>
-          <span className="text-xs font-bold text-slate-200">Drakonid Realm Arena</span>
+          <span className="text-xs font-bold text-slate-200">World of Warcraft · Arena</span>
         </div>
       )}
 

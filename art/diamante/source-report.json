@@ -1,0 +1,49 @@
+{
+  "bounds": [
+    [
+      -77.31616973876953,
+      -56.14776611328125,
+      -76.20880126953125
+    ],
+    [
+      76.81941986083984,
+      58.717777252197266,
+      112.68073272705078
+    ]
+  ],
+  "materials": [
+    "mat_9vl_valkyr_bigbuilding01_2839577",
+    "mat_9vl_valkyr_covenantsanctum01_2829046",
+    "mat_9vl_valkyr_covenantsanctum01_2835282",
+    "mat_9vl_valkyr_covenantsanctum01_2839575",
+    "mat_9vl_valkyr_covenantsanctum01_2839578",
+    "mat_9vl_valkyr_covenantsanctum01_2839579",
+    "mat_9vl_valkyr_covenantsanctum01_2888611",
+    "mat_9vl_valkyr_covenantsanctum01_2888612",
+    "mat_9vl_valkyr_covenantsanctum01_2888613",
+    "mat_9vl_valkyr_covenantsanctum01_2888614",
+    "mat_9vl_valkyr_covenantsanctum01_2888615",
+    "mat_9vl_valkyr_covenantsanctum01_2888616",
+    "mat_9vl_valkyr_covenantsanctum01_2888617",
+    "mat_9vl_valkyr_covenantsanctum01_2888618",
+    "mat_9vl_valkyr_covenantsanctum01_2910473",
+    "mat_9vl_valkyr_covenantsanctum01_2910476",
+    "mat_9vl_valkyr_covenantsanctum01_2910478",
+    "mat_9vl_valkyr_covenantsanctum01_2910480",
+    "mat_9vl_valkyr_covenantsanctum01_2915764",
+    "mat_9vl_valkyr_covenantsanctum01_2915765",
+    "mat_9vl_valkyr_covenantsanctum01_2915768",
+    "mat_9vl_valkyr_covenantsanctum01_2921250",
+    "mat_9vl_valkyr_covenantsanctum01_2924926",
+    "mat_9vl_valkyr_covenantsanctum01_2930650",
+    "mat_9vl_valkyr_covenantsanctum01_2958733",
+    "mat_9vl_valkyr_covenantsanctum01_2958736",
+    "mat_9vl_valkyr_covenantsanctum01_2958737",
+    "mat_9vl_valkyr_covenantsanctum01_2963491",
+    "mat_9vl_valkyr_covenantsanctum01_2992005",
+    "mat_9vl_valkyr_covenantsanctum01_2992006",
+    "mat_9vl_valkyr_covenantsanctum01_3011170",
+    "mat_9vl_valkyr_covenantsanctum01_3011171",
+    "mat_grey.001"
+  ]
+}

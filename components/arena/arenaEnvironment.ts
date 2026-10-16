@@ -1,6 +1,7 @@
 // src/components/arena/arenaEnvironment.ts
 
 import * as THREE from 'three';
+import type { WowArena } from './wowArenas';
 import { ARENA_CONFIG } from './arenaConfig';
 
 export interface FlameEntity {
@@ -11,11 +12,13 @@ export interface FlameEntity {
 }
 
 export function setupArenaLights(scene: THREE.Scene) {
+  const rig = new THREE.Group();
+  rig.name = 'arena-light-rig';
   const { hemi, sun, cyanRim, goldRim, ambient, centerGlow } = ARENA_CONFIG.lights;
 
   // 1. Hemisphere Light
   const hemiLight = new THREE.HemisphereLight(hemi.skyColor, hemi.groundColor, hemi.intensity);
-  scene.add(hemiLight);
+  rig.add(hemiLight);
 
   // 2. Directional Sun Light
   const dirLight = new THREE.DirectionalLight(sun.color, sun.intensity);
@@ -30,25 +33,50 @@ export function setupArenaLights(scene: THREE.Scene) {
   dirLight.shadow.camera.right = 16;
   dirLight.shadow.camera.top = 16;
   dirLight.shadow.camera.bottom = -16;
-  scene.add(dirLight);
+  rig.add(dirLight);
 
   // 3. Rim Lights
   const cRim = new THREE.DirectionalLight(cyanRim.color, cyanRim.intensity);
   cRim.position.copy(cyanRim.position);
-  scene.add(cRim);
+  rig.add(cRim);
 
   const gRim = new THREE.DirectionalLight(goldRim.color, goldRim.intensity);
   gRim.position.copy(goldRim.position);
-  scene.add(gRim);
+  rig.add(gRim);
 
   // 4. Ambient Fill Light
   const ambLight = new THREE.AmbientLight(ambient.color, ambient.intensity);
-  scene.add(ambLight);
+  rig.add(ambLight);
 
   // 5. Center Point Glow
   const cPointLight = new THREE.PointLight(centerGlow.color, centerGlow.intensity, centerGlow.distance);
   cPointLight.position.copy(centerGlow.position);
-  scene.add(cPointLight);
+  rig.add(cPointLight);
+  const names = ['hemisphere', 'sun', 'cyan-rim', 'gold-rim', 'ambient', 'center'];
+  rig.children.forEach((object, index) => {
+    object.name = names[index];
+    object.userData.baseIntensity = (object as THREE.Light).intensity;
+  });
+  scene.add(rig);
+}
+
+/** Diamond uses the same AgX display transform as its Blender preview.
+ * Less omnidirectional fill preserves stone contrast instead of washing it out.
+ */
+export function applyArenaAppearance(scene: THREE.Scene, renderer: THREE.WebGLRenderer, rank: WowArena) {
+  const diamond = rank === 'Diamante';
+  renderer.toneMapping = diamond ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = diamond ? 1.0 : 1.35;
+  const intensities: Record<string, number> = {
+    hemisphere: 0.65, sun: 2.0, 'cyan-rim': 0.45, 'gold-rim': 0.15, ambient: 0.18, center: 0,
+  };
+  scene.getObjectByName('arena-light-rig')?.children.forEach(object => {
+    const light = object as THREE.Light;
+    light.intensity = diamond ? intensities[light.name] : light.userData.baseIntensity;
+    if (light instanceof THREE.DirectionalLight && light.name === 'sun') {
+      light.shadow.normalBias = diamond ? 0.025 : 0;
+    }
+  });
 }
 
 export function setupArenaEnvironment(scene: THREE.Scene): FlameEntity[] {
